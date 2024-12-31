@@ -1,0 +1,27 @@
+table Pareto
+	lineageTag: 4812682a-c3ae-4f4d-ad3a-ef2c5f970f5e
+
+	measure 'Pareto Value' = SELECTEDVALUE('Pareto'[Range], "0.8")
+		lineageTag: b51de44c-290b-4c2b-965a-1394bda9b95f
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column Range
+		formatString: 0.00
+		lineageTag: 3f0529d2-3243-44a3-9440-b0da04e5b90e
+		summarizeBy: none
+		sourceColumn: [Value]
+
+		extendedProperty ParameterMetadata =
+				{
+				  "version": 0
+				}
+
+		annotation SummarizationSetBy = User
+
+	partition Pareto = calculated
+		mode: import
+		source = GENERATESERIES(0.01, 1.00, 0.01)
+
+	annotation PBI_Id = c1a62d15bd484c85b0b24b81d297c2da
+

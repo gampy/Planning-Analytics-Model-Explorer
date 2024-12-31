@@ -1,0 +1,45 @@
+table 'System measures'
+	lineageTag: 346a8bdf-79c0-4e01-88b8-be26e83fa089
+
+	measure 'Report Date' = FORMAT(LASTDATE('SysLastRefresh'[LastRefreshDate]), "dd.mm.yyyy hh:nn")
+		lineageTag: a6693f59-39c9-44b2-945d-a0a4fdcecf16
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Config Status' = ```
+			
+			    VAR ConfigStatus = SELECTEDVALUE('SysConfigStatus'[Value])
+			    RETURN 
+			        SWITCH( ConfigStatus 
+			            , "FALSE", UNICHAR( 10006 )
+			            , "TRUE", UNICHAR( 10004 )
+			            , ConfigStatus
+			        )
+			```
+		lineageTag: b68b84f1-8b2c-4ac6-99c1-9d0143ab54a2
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column Dummy
+		dataType: string
+		isHidden
+		lineageTag: dad4803f-f08f-4ea9-9b2d-d99820d78056
+		summarizeBy: none
+		sourceColumn: Dummy
+
+		changedProperty = IsHidden
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'System measures-e2a25533-f43c-4cfe-b419-0b51c8899b6e' = m
+		mode: import
+		queryGroup: Data\Measures
+		source =
+				let
+				    Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText("i44FAA==", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type nullable text) meta [Serialized.Text = true]) in type table [Dummy = _t]),
+				    #"Changed Type" = Table.TransformColumnTypes(Source,{{"Dummy", type text}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_ResultType = Table
+

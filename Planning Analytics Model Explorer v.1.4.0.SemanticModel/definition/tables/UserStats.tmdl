@@ -1,0 +1,121 @@
+table UserStats
+	lineageTag: e6f0d0ac-887c-4c20-9eca-110cbe5750ec
+
+	column User
+		dataType: string
+		lineageTag: 9fc08d15-28db-4d68-a35c-81253fe7556a
+		summarizeBy: none
+		sourceColumn: User
+
+		annotation SummarizationSetBy = Automatic
+
+	column Indicator
+		dataType: string
+		lineageTag: c50e9c09-6790-42ba-93af-e558b026f316
+		summarizeBy: none
+		sourceColumn: Indicator
+
+		annotation SummarizationSetBy = Automatic
+
+	column TimeIntervals
+		dataType: string
+		lineageTag: 718b7d5f-68f0-41ba-973b-eb93764f363f
+		summarizeBy: none
+		sourceColumn: TimeIntervals
+
+		annotation SummarizationSetBy = Automatic
+
+	column Value
+		dataType: int64
+		formatString: 0
+		lineageTag: c31a821c-db40-4630-85ba-ece1b2839a3a
+		summarizeBy: sum
+		sourceColumn: Value
+
+		annotation SummarizationSetBy = Automatic
+
+	column DateTime
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: b25dbd6e-a368-4a4b-b8db-080bc8c29cfd
+		summarizeBy: none
+		sourceColumn: DateTime
+
+		variation Variation
+			isDefault
+			relationship: aa947d0a-7b40-4551-98ae-03532ce1ecce
+			defaultHierarchy: LocalDateTable_026736a1-5a83-4784-ab3f-ab7eae229ff8.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	column HoursOffset
+		dataType: int64
+		formatString: 0
+		lineageTag: 202b2714-96c4-47f9-9421-201098854e1d
+		summarizeBy: sum
+		sourceColumn: HoursOffset
+
+		annotation SummarizationSetBy = Automatic
+
+	column Time
+		dataType: dateTime
+		formatString: Long Time
+		lineageTag: 14e2ada6-9b80-49b6-a5b0-d64a07fe0ff2
+		summarizeBy: none
+		sourceColumn: Time
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Time
+
+	hierarchy 'User Hierarchy'
+		lineageTag: f480e12e-4805-4fac-907e-cc3017db3519
+
+		level User
+			lineageTag: f16e54ee-44a9-423a-a967-fbf1081769ac
+			column: User
+
+		level DateTime
+			lineageTag: b879b2d5-1653-4181-97f9-a3683eb4f2b9
+			column: DateTime
+
+	partition UserStats-9110d375-3d89-47ff-b0f2-cbc04930f7de = m
+		mode: import
+		queryGroup: Data\UserData
+		source = ```
+				// Copyright © Alex Zaitsev
+				
+				let
+				     Source = 
+				        if (try ConnectionConfig[ConnectionType] otherwise "REST") = "REST" 
+				        then
+				            let 
+				                Dim1 = "}PerfClients",
+				                Dim2 = "}StatsStatsByClient",
+				                Dim3 = "}TimeIntervals",
+				
+				                TabulateCubeData = fn_tabulateCubeData(HttpRequests[StatsByClient][Cells], HttpRequests[StatsByClient][Axes]),
+				                CheckCubeData = if Table.IsEmpty(TabulateCubeData) then Table.FromRows({}, {Dim1, Dim2, Dim3, "Value"}) else TabulateCubeData,
+				                RenameCubeData = Table.RenameColumns(CheckCubeData, {{Dim1, "User"}, {Dim2, "Indicator"},  {Dim3, "TimeIntervals"}, {"Value", "Value"}}),
+				                UserStats = Table.SelectColumns(RenameCubeData, {"User", "Indicator", "TimeIntervals", "Value"}),
+				                RemoveUsersTotal = Table.SelectRows(UserStats, each Text.From([User]) <> "Clients Total"), // Not needed for BI reports
+				                ReplaceNullValues = Table.ReplaceValue(RemoveUsersTotal, null, 0, Replacer.ReplaceValue, {"Value"}), 
+				                AggregateMRecords = fn_aggregateMTimeIntervalsToCurrentHour(ReplaceNullValues,  {"User", "Indicator", "TimeIntervals"}, {{"Value", each List.Sum([Value]), type nullable number}}, "TimeIntervals"),
+				                DuplicateTimeIntervalsColumn = Table.DuplicateColumn(AggregateMRecords, "TimeIntervals", "DateTime"),
+				                AddDateTime = fn_transformTimeIntervalsToDateTime(DuplicateTimeIntervalsColumn, "DateTime"),
+				                AddTime = Table.AddColumn(AddDateTime, "Time", each Time.From([DateTime]), type time),                       
+				                LatestDateTime = List.Max(AddTime[DateTime]),
+				                HoursOffset = Table.AddColumn(AddTime, "HoursOffset", each Number.RoundDown(Duration.TotalHours( Duration.From([DateTime] - LatestDateTime)) ), Int64.Type),
+				                TransformColumnTypes = Table.TransformColumnTypes(HoursOffset, {{"User", type text}, {"Indicator", type text}, {"TimeIntervals", type text}, {"DateTime", type datetime}, {"Time", type time}, {"Value", Int64.Type}})
+				            in
+				                TransformColumnTypes
+				        else
+				            SysNullTables[UserStats]
+				in
+				    try Source otherwise SysNullTables[UserStats]
+				```
+
+	annotation PBI_ResultType = Table
+
+	annotation PBI_NavigationStepName = Navigation
+

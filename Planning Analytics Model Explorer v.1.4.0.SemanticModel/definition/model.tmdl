@@ -1,0 +1,147 @@
+model Model
+	culture: en-US
+	defaultPowerBIDataSourceVersion: powerBI_V3
+	discourageImplicitMeasures
+	sourceQueryCulture: ru-RU
+	dataAccessOptions
+		legacyRedirects
+		returnErrorValuesAsNull
+
+queryGroup Settings
+
+	annotation PBI_QueryGroupOrder = 0
+
+queryGroup Data
+
+	annotation PBI_QueryGroupOrder = 2
+
+queryGroup Functions
+
+	annotation PBI_QueryGroupOrder = 1
+
+queryGroup Data\MetaData
+
+	annotation PBI_QueryGroupOrder = 1
+
+queryGroup SysData
+
+	annotation PBI_QueryGroupOrder = 4
+
+queryGroup Data\UserData
+
+	annotation PBI_QueryGroupOrder = 2
+
+queryGroup Functions\Lib
+
+	annotation PBI_QueryGroupOrder = 0
+
+queryGroup Data\Measures
+
+	annotation PBI_QueryGroupOrder = 0
+
+queryGroup Settings\Configuration
+
+	annotation PBI_QueryGroupOrder = 1
+
+queryGroup Settings\Params
+
+	annotation PBI_QueryGroupOrder = 0
+
+queryGroup Data\UserData\DataFilesLoad
+
+	annotation PBI_QueryGroupOrder = 0
+
+queryGroup Functions\RulesProcessesHandling
+
+	annotation PBI_QueryGroupOrder = 2
+
+queryGroup Functions\Lib\BasicEx
+
+	annotation PBI_QueryGroupOrder = 0
+
+queryGroup Functions\Utils
+
+	annotation PBI_QueryGroupOrder = 4
+
+queryGroup Functions\StatCubesHandling
+
+	annotation PBI_QueryGroupOrder = 3
+
+queryGroup Functions\DataExtraction
+
+	annotation PBI_QueryGroupOrder = 1
+
+queryGroup Functions\RulesProcessesHandling\Private
+
+	annotation PBI_QueryGroupOrder = 0
+
+queryGroup 'Data\UserData\REST loads'
+
+	annotation PBI_QueryGroupOrder = 1
+
+annotation PBI_QueryOrder = ["DataFiles_Cubes","DataFiles_Dimensions","DataFiles_RulesAndProcesses","DataFiles_MessageLog","FileExtentions","KeyWords","01 CONNECTION TYPE","11 HTTP(S)://HOST:PORT","12 LOGIN","13 PASSWORD","14 NAMESPACE","21 MAX TREE PATHS COUNT","22 ALIASES","23 TRANSACTION LOG PERIOD","fn_extractFunctionEntries","fn_calcMaxTreeDepth","fn_prepareCodeContent","fn_createHierarchyPath","fn_nestedExpressionsCount","Source_Rules","Source_Processes","Configuration","CubeDimensions","Cubes","Dimensions","DimensionAttributes","DimensionElements","ElementAliases","Users","UserGroups","Source_MessageLog","FeedersProcessing","ModelElapsedTime","Source_TransactionLog","TransactionLog","TransactionLogDimensions","CubeSecurity","CubeStats","UserStats","ServerStats","PerformanceStats","Tree:Rules:Target<Source","Tree:Rules:Source>Target","Tree:Rules:Details","Tree:Feeders:Source>Target","Tree:Feeders:Target<Source","Tree:Processes:Source>Target","Tree:Processes:Target<Source","CubeProcessesRelation","List_ItemsByPositions","List_Upper","Amount measures","System measures","SysName","SysMessageLog","SysHttpRequestLog","SysLastRefresh","SysConfigStatus","Text_ReplaceSubstring","Text_ContainsAnyOf","Text_BetweenOuterDelimiters","ConnectionConfig","SettingsConfig","fn_sendHttpRequest","fn_requestMDX","fn_requestView","HttpRequests","fn_tabulateCubeData","SettingsConfigDefault","Definitions","Table_TransformAllColumns","Table_ExpandAnyColumn","CubesTopN","fn_reverseHierarchy","fn_FlattenHierarchy (unused)","fn_transformTimeIntervalsToDateTime","fn_aggregateMTimeIntervalsToCurrentHour","fn_convertUTCtoLocalTimeZone","fn_isSuccessfulHttpRequest","DataFiles_TransactionLog","MemoryMetrics","MetricsTimeScale","Value_SafeDivision","SysStatusNo","31 DATA FILES PATH","32 LOG FILES PATH","fn_getProcessVariablesDict","SysNullTables","Units","TimeTable"]
+
+annotation __PBI_TimeIntelligenceEnabled = 1
+
+annotation PBIDesktopVersion = 2.138.782.0 (24.11)
+
+annotation __TEdtr = 1
+
+annotation PBI_ProTooling = ["DaxQueryView_Desktop","CalcGroup","DevMode"]
+
+ref table DateTableTemplate_8f415b77-7ec2-46f7-a121-3c125f36f7d4
+ref table Cubes
+ref table 'Amount measures'
+ref table 'System measures'
+ref table CubeProcessesRelation
+ref table CubeDimensions
+ref table DimensionAttributes
+ref table Dimensions
+ref table DimensionElements
+ref table UserGroups
+ref table CubeSecurity
+ref table TransactionLog
+ref table LocalDateTable_1df1e6a0-dc05-444d-a2e4-554e3cdfc54f
+ref table TransactionLogDimensions
+ref table ElementAliases
+ref table Configuration
+ref table Users
+ref table CubeStats
+ref table Definitions
+ref table CubesWithOthers
+ref table CubesTopN
+ref table UserStats
+ref table ServerStats
+ref table SysConfigStatus
+ref table SecurityToggle
+ref table SysLastRefresh
+ref table LocalDateTable_85cfbfb2-c37d-49e6-bd66-cc7c131b7f6d
+ref table MemoryMetrics
+ref table MetricsTimeScale
+ref table LocalDateTable_62b35232-6337-4bdc-884b-ef3497043f39
+ref table LocalDateTable_026736a1-5a83-4784-ab3f-ab7eae229ff8
+ref table LocalDateTable_cebce91d-7993-49a6-bab1-d5ee5f5698e9
+ref table Tree:Processes:Target<Source
+ref table PerformanceStats
+ref table SysStatusNo
+ref table ValueToggle
+ref table FeedersProcessing
+ref table LocalDateTable_45bf4bf2-be77-4a04-96f1-83e5771ea845
+ref table ModelElapsedTime
+ref table LocalDateTable_7d42e85f-721c-45bc-884d-f132081c47a6
+ref table Tree:Rules:Target<Source
+ref table Tree:Rules:Details
+ref table SysHttpRequestLog
+ref table Units
+ref table CrossCubes
+ref table SelectedCubes
+ref table Checkboxes
+ref table Tree:Feeders:Source>Target
+ref table FeedersProcessingLastRun
+ref table LocalDateTable_1b28d7f5-b705-44d0-925a-19dba80c20fb
+ref table Pareto
+ref table TimeTable
+ref table LocalDateTable_05d5940f-c3a1-4b99-991d-f3dd28ee5f21
+
+ref cultureInfo en-US
+

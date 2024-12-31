@@ -1,0 +1,93 @@
+table PerformanceStats
+	lineageTag: cd227d28-7127-4576-8049-b85004b6fb13
+
+	column SKIPCHECK
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: bad60cfe-4ddc-426b-9c06-f5869650ce7d
+		summarizeBy: none
+		sourceColumn: SKIPCHECK
+
+		annotation SummarizationSetBy = Automatic
+
+	column FEEDERS
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 6235a8af-5da1-448e-893d-102f399c1143
+		summarizeBy: none
+		sourceColumn: FEEDERS
+
+		annotation SummarizationSetBy = Automatic
+
+	column IFs
+		dataType: int64
+		lineageTag: 6d531f30-2f6b-4a96-955b-d86b54aa9a06
+		summarizeBy: sum
+		sourceColumn: IFs
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column 'Сonditional Feeders'
+		dataType: int64
+		lineageTag: 931edbdc-f06a-4bcb-8ed9-65dd0302c02b
+		summarizeBy: sum
+		sourceColumn: Сonditional Feeders
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column 'Nested IFs'
+		dataType: int64
+		formatString: 0
+		lineageTag: 1d99297c-dc75-4721-877e-388266d72da4
+		summarizeBy: sum
+		sourceColumn: Nested IFs
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Directional Feeders'
+		dataType: int64
+		formatString: 0
+		lineageTag: 95321fb6-c5ab-4a35-9f80-4c2aa9d2672b
+		summarizeBy: sum
+		sourceColumn: Directional Feeders
+
+		annotation SummarizationSetBy = Automatic
+
+	column Rule
+		dataType: string
+		lineageTag: de806250-572e-4bf2-ada7-5281227f247f
+		summarizeBy: none
+		sourceColumn: Rule
+
+		annotation SummarizationSetBy = Automatic
+
+	partition PerformanceStats-b1f8ced3-ea65-4860-9676-01b1afaa4267 = m
+		mode: import
+		queryGroup: Data\UserData
+		source = ```
+				// Copyright © Alex Zaitsev
+				
+				let
+				 	Source = Source_Rules,
+				    RenameColumns = Table.RenameColumns(Source,{{"Name", "Rule"}}),
+					
+					SkipCheck = Table.AddColumn(RenameColumns, "SKIPCHECK", each Text.Contains([TextContent], Text.Upper(KeyWords[SkipcheckRef])), type logical),
+					Feeders = Table.AddColumn(SkipCheck, "FEEDERS", each Text.Contains([TextContent], Text.Upper(KeyWords[FeederRef])), type logical),
+					IfCount = Table.AddColumn(Feeders, "IFs", each List.Count(Splitter.SplitTextByDelimiter("IF(", QuoteStyle.Csv)([TextContent])) - 1, Int64.Type),
+					NestedIfCount = Table.AddColumn(IfCount, "Nested IFs", each fn_nestedExpressionsCount(Text.From([TextContent]), "IF", {"IF"}), Int64.Type),
+					ConditionalFeedersCount = Table.AddColumn(NestedIfCount, "Сonditional Feeders", each  List.Count(Splitter.SplitTextByDelimiter("IF(", QuoteStyle.Csv)(Text.AfterDelimiter([TextContent], Text.Upper(KeyWords[FeederRef])))) - 1, Int64.Type),
+					DirectionalFeedersCount = Table.AddColumn(ConditionalFeedersCount, "Directional Feeders", 
+						each fn_nestedExpressionsCount(Text.AfterDelimiter([TextContent], Text.Upper(KeyWords[FeederRef])), KeyWords[RuleCubeRef]{0}, { KeyWords[RuleCubeRef]{0}, KeyWords[RuleAttrRef]{1} }), Int64.Type),
+				    RemoveColumns = Table.RemoveColumns(DirectionalFeedersCount, {"TextContent", "MetaData"})
+				in
+				    try RemoveColumns otherwise SysNullTables[PerformanceStats]
+				```
+
+	annotation PBI_ResultType = Table
+
+	annotation PBI_NavigationStepName = Navigation
+

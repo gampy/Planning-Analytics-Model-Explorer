@@ -1,0 +1,42 @@
+table TimeTable
+	lineageTag: f1740e89-8d32-4441-b25f-868188e9e094
+
+	column Hour
+		dataType: int64
+		formatString: 0
+		lineageTag: f9abc66e-c1b6-4c79-b518-4ba8611c91f7
+		summarizeBy: none
+		sourceColumn: Hour
+
+		annotation SummarizationSetBy = Automatic
+
+	column Time
+		dataType: dateTime
+		formatString: hh:nn
+		lineageTag: 7970a72c-cb89-47b4-8d1f-5a1f8c834699
+		summarizeBy: none
+		sourceColumn: Time
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Time
+
+		annotation PBI_FormatHint = {"isDateTimeCustom":true}
+
+	partition TimeTable = m
+		mode: import
+		queryGroup: Data\UserData
+		source =
+				// Copyright © Alex Zaitsev
+				
+				let
+				    Hour = Table.FromList(List.Numbers(0, 24), Splitter.SplitByNothing(), {"Hour"}),
+				    AddTime = Table.AddColumn(Hour, "Time", each Time.From(#time( [Hour], 0, 0 )), type time),
+				    ChangeType = Table.TransformColumnTypes(AddTime,{{"Hour", Int64.Type}})
+				in
+				    ChangeType
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+

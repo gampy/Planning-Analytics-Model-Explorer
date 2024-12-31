@@ -1,0 +1,556 @@
+{
+  "version": "1.1.0",
+  "diagrams": [
+    {
+      "ordinal": 0,
+      "scrollPosition": {
+        "x": 0,
+        "y": 503.37934602461968
+      },
+      "nodes": [
+        {
+          "location": {
+            "x": 2725.4254872876741,
+            "y": 159.93745999285676
+          },
+          "nodeIndex": "Amount measures",
+          "size": {
+            "height": 118,
+            "width": 234
+          },
+          "zIndex": 23
+        },
+        {
+          "location": {
+            "x": 0,
+            "y": 269.17542743136676
+          },
+          "nodeIndex": "CubeDimensions",
+          "size": {
+            "height": 166.61882587428238,
+            "width": 234
+          },
+          "zIndex": 24
+        },
+        {
+          "location": {
+            "x": 405.34598996187236,
+            "y": 719.593652513967
+          },
+          "nodeIndex": "CubeProcessesRelation",
+          "size": {
+            "height": 182.78663379236446,
+            "width": 234
+          },
+          "zIndex": 25
+        },
+        {
+          "location": {
+            "x": 0,
+            "y": 58.352410680513344
+          },
+          "nodeIndex": "Cubes",
+          "size": {
+            "height": 158.01342100919388,
+            "width": 234
+          },
+          "zIndex": 34
+        },
+        {
+          "location": {
+            "x": 0,
+            "y": 495.65625891407723
+          },
+          "nodeIndex": "DimensionAttributes",
+          "size": {
+            "height": 172.38727453921808,
+            "width": 234
+          },
+          "zIndex": 26
+        },
+        {
+          "location": {
+            "x": 397.01108036789117,
+            "y": 262.64323616319348
+          },
+          "nodeIndex": "DimensionElements",
+          "size": {
+            "height": 166.34247148210227,
+            "width": 237.46106919896158
+          },
+          "zIndex": 31
+        },
+        {
+          "location": {
+            "x": 402.98712690689712,
+            "y": 62.291169753176064
+          },
+          "nodeIndex": "Dimensions",
+          "size": {
+            "height": 154.17995068854674,
+            "width": 234
+          },
+          "zIndex": 38
+        },
+        {
+          "location": {
+            "x": 2726.7935290593909,
+            "y": 300.965348023828
+          },
+          "nodeIndex": "System measures",
+          "nodeLineageTag": "346a8bdf-79c0-4e01-88b8-be26e83fa089",
+          "size": {
+            "height": 145,
+            "width": 234
+          },
+          "zIndex": 41
+        },
+        {
+          "location": {
+            "x": 713.84059173743913,
+            "y": 57.635036400825072
+          },
+          "nodeIndex": "CubeSecurity",
+          "size": {
+            "height": 157.18942086847986,
+            "width": 234
+          },
+          "zIndex": 27
+        },
+        {
+          "location": {
+            "x": 1193.6057703746324,
+            "y": 65.354215994256791
+          },
+          "nodeIndex": "UserGroups",
+          "size": {
+            "height": 153.36263202416137,
+            "width": 234
+          },
+          "zIndex": 28
+        },
+        {
+          "location": {
+            "x": 403.95115839991786,
+            "y": 487.41244006056667
+          },
+          "nodeIndex": "TransactionLog",
+          "size": {
+            "height": 176.10354149480833,
+            "width": 229.38524106805141
+          },
+          "zIndex": 32
+        },
+        {
+          "location": {
+            "x": 708.65430326390515,
+            "y": 491.0209157744963
+          },
+          "nodeIndex": "TransactionLogDimensions",
+          "size": {
+            "height": 174.48669103515647,
+            "width": 229.3852410680513
+          },
+          "zIndex": 33
+        },
+        {
+          "location": {
+            "x": 2726.49223110961,
+            "y": 464.42152865505125
+          },
+          "nodeIndex": "Configuration",
+          "size": {
+            "height": 124,
+            "width": 234
+          },
+          "zIndex": 29
+        },
+        {
+          "location": {
+            "x": 1466.0702093400262,
+            "y": 66.117958597494521
+          },
+          "nodeIndex": "Users",
+          "size": {
+            "height": 153.13514763143087,
+            "width": 234
+          },
+          "zIndex": 42
+        },
+        {
+          "location": {
+            "x": 1192.2975851011058,
+            "y": 725.030808739081
+          },
+          "nodeIndex": "CubesWithOthers",
+          "nodeLineageTag": "32124a9f-efa0-4874-824b-e9e743aa0a15",
+          "size": {
+            "height": 172.07684994026937,
+            "width": 234
+          },
+          "zIndex": 36
+        },
+        {
+          "location": {
+            "x": 2730.6,
+            "y": 0
+          },
+          "nodeIndex": "CubesTopN",
+          "size": {
+            "height": 136,
+            "width": 234
+          },
+          "zIndex": 22
+        },
+        {
+          "location": {
+            "x": 1194.0121575010178,
+            "y": 261.78797008762996
+          },
+          "nodeIndex": "CubeStats",
+          "size": {
+            "height": 166.59755312565812,
+            "width": 234
+          },
+          "zIndex": 30
+        },
+        {
+          "location": {
+            "x": 1739.6759322724058,
+            "y": 260.76088760615863
+          },
+          "nodeIndex": "ServerStats",
+          "size": {
+            "height": 166.53985206564016,
+            "width": 234
+          },
+          "zIndex": 40
+        },
+        {
+          "location": {
+            "x": 1736.545127150275,
+            "y": 62.9580024188426
+          },
+          "nodeIndex": "UserStats",
+          "size": {
+            "height": 156.75750930431008,
+            "width": 234
+          },
+          "zIndex": 43
+        },
+        {
+          "location": {
+            "x": 712.86117543200066,
+            "y": 263.323531122236
+          },
+          "nodeIndex": "ElementAliases",
+          "size": {
+            "height": 166.1995301677776,
+            "width": 234
+          },
+          "zIndex": 21
+        },
+        {
+          "location": {
+            "x": 3015.8244398999936,
+            "y": 1.5355610346059194
+          },
+          "nodeIndex": "SysConfigStatus",
+          "nodeLineageTag": "bd72c3d2-dad5-49d2-889d-bd6f7141fc5e",
+          "size": {
+            "height": 128,
+            "width": 243.21336620763577
+          },
+          "zIndex": 35
+        },
+        {
+          "location": {
+            "x": 3300.5686000303654,
+            "y": 457.59718831256379
+          },
+          "nodeIndex": "SecurityToggle",
+          "nodeLineageTag": "d288d9c2-7e4f-45fb-996f-6c4c5d042d2a",
+          "size": {
+            "height": 128,
+            "width": 234
+          },
+          "zIndex": 19
+        },
+        {
+          "location": {
+            "x": 3005.6313445176183,
+            "y": 320.93225623263686
+          },
+          "nodeIndex": "SysLastRefresh",
+          "nodeLineageTag": "070575d7-5752-496f-98dc-b137c1f1e846",
+          "size": {
+            "height": 104,
+            "width": 234
+          },
+          "zIndex": 20
+        },
+        {
+          "location": {
+            "x": 2730.4490007421214,
+            "y": 612.68885280776135
+          },
+          "nodeIndex": "Definitions",
+          "nodeLineageTag": "15abe158-ea21-4f08-b941-4f6d28dc4819",
+          "size": {
+            "height": 149,
+            "width": 234
+          },
+          "zIndex": 16
+        },
+        {
+          "location": {
+            "x": 3001.1782247876822,
+            "y": 456.06162727795777
+          },
+          "nodeIndex": "SysHttpRequestLog",
+          "nodeLineageTag": "412e2343-ebfb-4fc0-929f-6584b2e26d32",
+          "size": {
+            "height": 124,
+            "width": 234
+          },
+          "zIndex": 17
+        },
+        {
+          "location": {
+            "x": 411.10240475554747,
+            "y": 951.43362641414762
+          },
+          "nodeIndex": "PerformanceStats",
+          "size": {
+            "height": 179.866337923645,
+            "width": 234
+          },
+          "zIndex": 10
+        },
+        {
+          "location": {
+            "x": 3016.4448353262205,
+            "y": 159.69834759901556
+          },
+          "nodeIndex": "SysStatusNo",
+          "nodeLineageTag": "e077cf34-0055-4447-a5a6-afc3bd61f050",
+          "size": {
+            "height": 135.10882861933487,
+            "width": 234
+          },
+          "zIndex": 11
+        },
+        {
+          "location": {
+            "x": 714.20159959363332,
+            "y": 726.32036936859947
+          },
+          "nodeIndex": "Tree:Processes:Target<Source",
+          "size": {
+            "height": 178.69067826613241,
+            "width": 234
+          },
+          "zIndex": 12
+        },
+        {
+          "location": {
+            "x": 3303.3388183943225,
+            "y": 313.25445105960733
+          },
+          "nodeIndex": "ValueToggle",
+          "nodeLineageTag": "a7d843b2-348a-4cc9-b20b-2130cd0f9412",
+          "size": {
+            "height": 128,
+            "width": 234
+          },
+          "zIndex": 13
+        },
+        {
+          "location": {
+            "x": 703.58316787201773,
+            "y": 1182.9401855090441
+          },
+          "nodeIndex": "FeedersProcessing",
+          "nodeLineageTag": "8d2df2c6-f219-4a7c-9137-4ecd242b1c7b",
+          "size": {
+            "height": 175.03341551908875,
+            "width": 234
+          },
+          "zIndex": 14
+        },
+        {
+          "location": {
+            "x": 705.94376222241374,
+            "y": 951.76335317882217
+          },
+          "nodeIndex": "ModelElapsedTime",
+          "size": {
+            "height": 177.13795310738942,
+            "width": 234
+          },
+          "zIndex": 15
+        },
+        {
+          "location": {
+            "x": 1194.5612203460696,
+            "y": 485.23728693547025
+          },
+          "nodeIndex": "MemoryMetrics",
+          "size": {
+            "height": 163.88688034963081,
+            "width": 234
+          },
+          "zIndex": 37
+        },
+        {
+          "location": {
+            "x": 1739.7440051208464,
+            "y": 479.09504279704669
+          },
+          "nodeIndex": "MetricsTimeScale",
+          "size": {
+            "height": 165.42244138423666,
+            "width": 234
+          },
+          "zIndex": 9
+        },
+        {
+          "location": {
+            "x": 0,
+            "y": 1401.9672245952038
+          },
+          "nodeIndex": "Tree:Rules:Target<Source",
+          "size": {
+            "height": 184.83292240455603,
+            "width": 234
+          },
+          "zIndex": 7
+        },
+        {
+          "location": {
+            "x": 2730.0656978093525,
+            "y": 783.5962755833782
+          },
+          "nodeIndex": "Tree:Rules:Details",
+          "nodeLineageTag": "e9263e07-57f7-4316-8140-299e65a1690b",
+          "size": {
+            "height": 145,
+            "width": 234
+          },
+          "zIndex": 8
+        },
+        {
+          "location": {
+            "x": 2732.1592873204272,
+            "y": 965.76764420985637
+          },
+          "nodeIndex": "Units",
+          "nodeLineageTag": "7a128f4e-7ba6-402d-ac79-77fecff0ecf8",
+          "size": {
+            "height": 145,
+            "width": 234
+          },
+          "zIndex": 39
+        },
+        {
+          "location": {
+            "x": 3303.072779723846,
+            "y": 617.304117973648
+          },
+          "nodeIndex": "SelectedCubes",
+          "nodeLineageTag": "89cb9cbb-d7d8-43e4-a00c-48af99af63a5",
+          "size": {
+            "height": 145,
+            "width": 234
+          },
+          "zIndex": 6
+        },
+        {
+          "location": {
+            "x": 419.46183446876705,
+            "y": 1404.6002875634317
+          },
+          "nodeIndex": "CrossCubes",
+          "nodeLineageTag": "9fd423ae-d3ae-489c-9661-8518b641ed62",
+          "size": {
+            "height": 189.25107275775872,
+            "width": 234
+          },
+          "zIndex": 3
+        },
+        {
+          "location": {
+            "x": 3301.7245128192253,
+            "y": 780.92490695690014
+          },
+          "nodeIndex": "Checkboxes",
+          "nodeLineageTag": "0ba8d918-2a1c-46d6-9b4c-aca2e2a0de92",
+          "size": {
+            "height": 145,
+            "width": 234
+          },
+          "zIndex": 4
+        },
+        {
+          "location": {
+            "x": 0,
+            "y": 1162.4175576811631
+          },
+          "nodeIndex": "Tree:Feeders:Source>Target",
+          "nodeLineageTag": "c549b457-6cf2-4e7e-9a74-6e66375fdc00",
+          "size": {
+            "height": 204.79521585443331,
+            "width": 232.46443896539398
+          },
+          "zIndex": 5
+        },
+        {
+          "location": {
+            "x": 417.70052458891632,
+            "y": 1182.2645258515317
+          },
+          "nodeIndex": "FeedersProcessingLastRun",
+          "nodeLineageTag": "9aaf3bef-52e1-4b41-83a5-67b73f69fbfe",
+          "size": {
+            "height": 180.03770655012295,
+            "width": 234
+          },
+          "zIndex": 1
+        },
+        {
+          "location": {
+            "x": 3587.3388183943225,
+            "y": 687.54017212278643
+          },
+          "nodeIndex": "Pareto",
+          "size": {
+            "height": 224,
+            "width": 234
+          },
+          "zIndex": 2
+        },
+        {
+          "location": {
+            "x": 2027.1657713062675,
+            "y": 65.040691965507719
+          },
+          "nodeIndex": "TimeTable",
+          "nodeLineageTag": "f1740e89-8d32-4441-b25f-868188e9e094",
+          "size": {
+            "height": 153.21763999473683,
+            "width": 255.91370665263139
+          },
+          "zIndex": 0
+        }
+      ],
+      "name": "All tables",
+      "zoomValue": 91.779689343353425,
+      "pinKeyFieldsToTop": false,
+      "showExtraHeaderInfo": false,
+      "hideKeyFieldsWhenCollapsed": false,
+      "tablesLocked": false
+    }
+  ],
+  "selectedDiagram": "All tables",
+  "defaultDiagram": "All tables"
+}

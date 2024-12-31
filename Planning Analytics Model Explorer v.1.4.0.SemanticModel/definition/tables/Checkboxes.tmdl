@@ -1,0 +1,21 @@
+table Checkboxes
+	lineageTag: 0ba8d918-2a1c-46d6-9b4c-aca2e2a0de92
+
+	column Value
+		lineageTag: 48e56c7f-90d5-49ba-959b-396eda329b69
+		summarizeBy: none
+		isNameInferred
+		sourceColumn: [Value]
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Checkboxes = calculated
+		mode: import
+		source =
+				{
+				          ([cSuppressZeros])
+				        , ("Reserved")
+				    }
+
+	annotation PBI_Id = 78a1d024f0a640068435861805648130
+

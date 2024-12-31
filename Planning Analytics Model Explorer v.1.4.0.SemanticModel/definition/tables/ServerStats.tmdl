@@ -1,0 +1,88 @@
+table ServerStats
+	lineageTag: ffc58ac3-8160-497d-bdd8-f3b57f170337
+
+	column Indicator
+		dataType: string
+		lineageTag: 972f49bb-d45b-478c-8c01-c8aac2bd5107
+		summarizeBy: none
+		sourceColumn: Indicator
+
+		annotation SummarizationSetBy = Automatic
+
+	column TimeIntervals
+		dataType: string
+		lineageTag: cb821b4a-12a4-4eda-a759-e36639c32947
+		summarizeBy: none
+		sourceColumn: TimeIntervals
+
+		annotation SummarizationSetBy = Automatic
+
+	column Value
+		dataType: int64
+		formatString: 0
+		lineageTag: 9b2e032e-906b-4d45-99c8-37f9d8d99ad8
+		summarizeBy: sum
+		sourceColumn: Value
+
+		annotation SummarizationSetBy = Automatic
+
+	column DateTime
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: d02ba839-7fd5-4044-b12a-99ba43471ce2
+		summarizeBy: none
+		sourceColumn: DateTime
+
+		variation Variation
+			isDefault
+			relationship: 6219d8c6-accf-46f0-9c04-73afa1a0ebc0
+			defaultHierarchy: LocalDateTable_cebce91d-7993-49a6-bab1-d5ee5f5698e9.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	column HoursOffset
+		dataType: int64
+		formatString: 0
+		lineageTag: c5f5684a-886d-422f-a898-91c01655ade5
+		summarizeBy: none
+		sourceColumn: HoursOffset
+
+		annotation SummarizationSetBy = Automatic
+
+	partition ServerStats-e7d041cf-261b-4b24-8259-03be21f4d9fa = m
+		mode: import
+		queryGroup: Data\UserData
+		source = ```
+				// Copyright © Alex Zaitsev
+				
+				let
+				       Source = 
+				         if (try ConnectionConfig[ConnectionType] otherwise "REST") = "REST"
+				         then
+				             let
+				                Dim1 = "}StatsStatsForServer",
+				                Dim2 = "}TimeIntervals",
+				
+				                TabulateCubeData = fn_tabulateCubeData(HttpRequests[StatsForServer][Cells], HttpRequests[StatsForServer][Axes]),
+				                CheckCubeData = if Table.IsEmpty(TabulateCubeData) then Table.FromRows({}, {Dim1, Dim2, "Value"}) else TabulateCubeData,
+				                RenameCubeData = Table.RenameColumns(CheckCubeData, {{Dim1, "Indicator"},  {Dim2, "TimeIntervals"}, {"Value", "Value"}}),
+				                ServerStats = Table.SelectColumns(RenameCubeData, {"Indicator", "TimeIntervals", "Value"}),
+				                ReplaceNullValues = Table.ReplaceValue(ServerStats, null, 0, Replacer.ReplaceValue, {"Value"}), 
+				                AggregateMRecords = fn_aggregateMTimeIntervalsToCurrentHour(ReplaceNullValues,  {"Indicator", "TimeIntervals"}, {{"Value", each List.Average([Value]), type nullable number}}, "TimeIntervals"),
+				                DuplicateTimeIntervalsColumn = Table.DuplicateColumn(AggregateMRecords, "TimeIntervals", "DateTime"),
+				                AddDateTime = fn_transformTimeIntervalsToDateTime(DuplicateTimeIntervalsColumn, "DateTime"),                        
+				                LatestDateTime = List.Max(AddDateTime[DateTime]),
+				                HoursOffset = Table.AddColumn(AddDateTime, "HoursOffset", each Number.RoundDown(Duration.TotalHours( Duration.From([DateTime] - LatestDateTime)) ), Int64.Type),
+				                TransformColumnTypes = Table.TransformColumnTypes(HoursOffset, {{"Indicator", type text}, {"TimeIntervals", type text}, {"DateTime", type datetime}, {"Value", Int64.Type}, {"HoursOffset", Int64.Type}})
+				            in
+				                TransformColumnTypes
+				         else
+				             SysNullTables[ServerStats]
+				 in
+				     try Source otherwise SysNullTables[ServerStats]
+				```
+
+	annotation PBI_ResultType = Exception
+
+	annotation PBI_NavigationStepName = Navigation
+

@@ -1,0 +1,72 @@
+table DimensionAttributes
+	lineageTag: 6fa34f19-9794-4e18-9de6-b46a455561d0
+
+	column Dimension
+		dataType: string
+		lineageTag: d6778909-e78d-4c4b-a15e-31d551164ce6
+		summarizeBy: none
+		sourceColumn: Dimension
+
+		annotation SummarizationSetBy = Automatic
+
+	column Attribute
+		dataType: string
+		lineageTag: 3cc76657-2611-4035-81cc-701e2ed40c13
+		summarizeBy: none
+		sourceColumn: Attribute
+
+		annotation SummarizationSetBy = Automatic
+
+	column Hierarchy
+		dataType: string
+		lineageTag: 32fd76fe-497c-42d6-ad7c-771edf73ff2e
+		summarizeBy: none
+		sourceColumn: Hierarchy
+
+		annotation SummarizationSetBy = Automatic
+
+	column AttributeType
+		dataType: string
+		lineageTag: ce1c9005-39ac-4864-8d18-98d18984190c
+		summarizeBy: none
+		sourceColumn: AttributeType
+
+		annotation SummarizationSetBy = Automatic
+
+	partition DimensionAttributes-fe0c8d7a-336c-4f6a-a583-8c85ef789265 = m
+		mode: import
+		queryGroup: Data\UserData
+		source = ```
+				// Copyright © Alex Zaitsev
+				
+				let
+				    Source = 
+				        if (try ConnectionConfig[ConnectionType] otherwise "REST") = "REST" 
+				        then
+				            let
+				                Value = HttpRequests[DimensionAttributes][value],
+				                ConvertToTable = Table.FromList(Value, Splitter.SplitByNothing(), {"RecordSet"}, null, ExtraValues.Ignore),
+				                ExpandRecordSet = Table.ExpandRecordColumn(ConvertToTable, "RecordSet", {"Name", "Hierarchies"}, {"Dimension", "Hierarchies"}),
+				                NameSelection = Table.SelectRows(ExpandRecordSet, each 
+				                                                                let 
+				                                                                    Dim = [Dimension], 
+				                                                                    NameFilter = List.MatchesAny( Dimensions[Dimension], each _ = Text.From ( Dim ))
+				                                                                in 
+				                                                                    NameFilter
+				                                        ),
+				                ExpandHierarchiesList = Table.ExpandListColumn(NameSelection, "Hierarchies"),
+				                ExpandHierarchiesRecordSet = Table.ExpandRecordColumn(ExpandHierarchiesList, "Hierarchies", {"Name", "ElementAttributes"}, {"Hierarchy", "ElementAttributes"}),
+				                ExpandElementAttributesList = Table.ExpandListColumn(ExpandHierarchiesRecordSet, "ElementAttributes"),
+				                ExpandElementAttributesRecordSet = Table.ExpandRecordColumn(ExpandElementAttributesList, "ElementAttributes", {"Name", "Type"}, {"Attribute", "AttributeType"})
+				            in
+				                ExpandElementAttributesRecordSet        
+				        else
+				            SysNullTables[DimensionAttributes]
+				in
+				    try Source otherwise SysNullTables[DimensionAttributes]
+				```
+
+	annotation PBI_ResultType = Exception
+
+	annotation PBI_NavigationStepName = Navigation
+

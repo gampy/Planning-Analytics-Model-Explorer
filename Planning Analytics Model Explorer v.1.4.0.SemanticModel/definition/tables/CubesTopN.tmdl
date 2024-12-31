@@ -1,0 +1,44 @@
+table CubesTopN
+	lineageTag: b5880fa0-f67b-480c-8f7b-8a4fb69b6d46
+
+	column Number
+		dataType: double
+		lineageTag: 459173b7-cd58-4deb-8bc1-a5127f7f1b7a
+		summarizeBy: sum
+		sourceColumn: Number
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column SelectedValue
+		dataType: string
+		lineageTag: ba94008b-1e48-46a6-82f2-9be8a0c20e4d
+		summarizeBy: none
+		sourceColumn: SelectedValue
+		sortByColumn: Number
+
+		annotation SummarizationSetBy = Automatic
+
+	partition CubesTopN-87389a4d-7154-4160-a88e-dbcc7425828f = m
+		mode: import
+		queryGroup: Data\UserData
+		source =
+				// Copyright © Alex Zaitsev
+				
+				let
+				    Source = #table(type table[Number = number],
+				                    {
+				                        {3}, {4}, {5}, {6}, {10}
+				                    }
+				    ),
+				    CubesCount = List.Count(Cubes[Cube]),
+				    ResultNumber = Table.Combine({ Table.SelectRows(Source, each [Number] < CubesCount), #table(type table[Number = number], { {CubesCount} }) }),
+				    ResultTable = Table.AddColumn(ResultNumber, "SelectedValue", each if [Number] < CubesCount then Number.ToText([Number]) else "All", type text)
+				in
+				    ResultTable
+
+	annotation PBI_ResultType = Table
+
+	annotation PBI_NavigationStepName = Navigation
+

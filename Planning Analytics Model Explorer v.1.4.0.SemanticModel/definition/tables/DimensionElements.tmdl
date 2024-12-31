@@ -1,0 +1,251 @@
+table DimensionElements
+	lineageTag: 715bccf4-8996-418f-8df0-c40e250473d0
+
+	column Dimension
+		dataType: string
+		lineageTag: b62a4e29-c21f-40d8-a6e5-154781161184
+		summarizeBy: none
+		sourceColumn: Dimension
+
+		annotation SummarizationSetBy = Automatic
+
+	column Hierarchy
+		dataType: string
+		lineageTag: bb03bdcc-4fc0-4630-bf3d-b2c6d4216400
+		summarizeBy: none
+		sourceColumn: Hierarchy
+
+		annotation SummarizationSetBy = Automatic
+
+	column Element_0
+		dataType: string
+		lineageTag: b8ffb448-55be-44be-ae64-b2af97a5e2cc
+		summarizeBy: none
+		sourceColumn: Element_0
+
+		annotation SummarizationSetBy = Automatic
+
+	column ElementType
+		dataType: string
+		lineageTag: cd14cbc6-de05-4fc2-b9bb-fb7ed20b2aea
+		summarizeBy: none
+		sourceColumn: ElementType
+
+		annotation SummarizationSetBy = Automatic
+
+	column ElementLevel
+		dataType: string
+		lineageTag: 70925e9a-10f6-4250-bc83-dd6c47193ca7
+		summarizeBy: none
+		sourceColumn: ElementLevel
+
+		annotation SummarizationSetBy = Automatic
+
+	column Element_1
+		dataType: string
+		lineageTag: 0c8180a5-ce6e-4063-9417-eb355334e0d8
+		summarizeBy: none
+		sourceColumn: Element_1
+
+		annotation SummarizationSetBy = Automatic
+
+	column Element_2
+		dataType: string
+		lineageTag: cf322b25-4c7b-49b3-8f62-58413b6143ad
+		summarizeBy: none
+		sourceColumn: Element_2
+
+		annotation SummarizationSetBy = Automatic
+
+	column Element_3
+		dataType: string
+		lineageTag: 0597f1b4-96c0-4f52-888f-ea15d714a514
+		summarizeBy: none
+		sourceColumn: Element_3
+
+		annotation SummarizationSetBy = Automatic
+
+	column Element_4
+		dataType: string
+		lineageTag: fae27390-3713-4e1b-a585-5c3afc51eca6
+		summarizeBy: none
+		sourceColumn: Element_4
+
+		annotation SummarizationSetBy = Automatic
+
+	column Element_5
+		dataType: string
+		lineageTag: 54e0ffa6-a23f-43e2-bb44-b3d345a09ffa
+		summarizeBy: none
+		sourceColumn: Element_5
+
+		annotation SummarizationSetBy = Automatic
+
+	column Element_6
+		dataType: string
+		lineageTag: d7b71c29-bf72-4a1f-9871-a8243a1d1168
+		summarizeBy: none
+		sourceColumn: Element_6
+
+		annotation SummarizationSetBy = Automatic
+
+	column Element_7
+		dataType: string
+		lineageTag: ce3e23ce-467b-4a72-b828-430b0ea32ebe
+		summarizeBy: none
+		sourceColumn: Element_7
+
+		annotation SummarizationSetBy = Automatic
+
+	column Element_8
+		dataType: string
+		lineageTag: 771d093e-b82b-4db1-8ee2-e560e514b44a
+		summarizeBy: none
+		sourceColumn: Element_8
+
+		annotation SummarizationSetBy = Automatic
+
+	column Element_9
+		dataType: string
+		lineageTag: 731bb908-6b5f-4172-9979-7820ec4c6ac6
+		summarizeBy: none
+		sourceColumn: Element_9
+
+		annotation SummarizationSetBy = Automatic
+
+	column Element_10
+		dataType: string
+		lineageTag: a13610e4-cb46-4ebf-91d5-b92215a29801
+		summarizeBy: none
+		sourceColumn: Element_10
+
+		annotation SummarizationSetBy = Automatic
+
+	column ElementIndex
+		dataType: int64
+		formatString: 0
+		lineageTag: 6e35d6f1-1d56-4a46-9787-6bd1c47b7d7a
+		summarizeBy: sum
+		sourceColumn: ElementIndex
+
+		annotation SummarizationSetBy = Automatic
+
+	column ElementKey
+		dataType: string
+		lineageTag: 2994be59-6c79-4113-875e-6b03ef4acf3b
+		summarizeBy: none
+		sourceColumn: ElementKey
+
+		annotation SummarizationSetBy = Automatic
+
+	column HierarchyDepth = PATHLENGTH('DimensionElements'[HierarchyPath])
+		lineageTag: 5e628418-54e5-49aa-a084-5c8de84310ce
+		summarizeBy: none
+
+		annotation SummarizationSetBy = Automatic
+
+	column HierarchyPath
+		dataType: string
+		lineageTag: 193f6b68-0fd9-4a9f-aaae-e30ff6603269
+		summarizeBy: none
+		sourceColumn: HierarchyPath
+
+		annotation SummarizationSetBy = Automatic
+
+	partition DimensionElements-151cb544-b9ac-4baf-b419-437459b920af = m
+		mode: import
+		queryGroup: Data\UserData
+		source = ```
+				// Copyright © Alex Zaitsev
+				
+				let
+				    Source = 
+				        if (try ConnectionConfig[ConnectionType] otherwise "REST") = "REST" 
+				        then
+				            let
+				                Value = HttpRequests[DimensionElements][value],
+				                ConvertToTable = Table.FromList(Value, Splitter.SplitByNothing(), {"RecordSet"}, null, ExtraValues.Ignore),
+				                ExpandRecordSet = Table.ExpandRecordColumn(ConvertToTable, "RecordSet", {"Name", "Hierarchies"}, {"Dimension", "Hierarchies"}),
+				                NameSelection = Table.SelectRows(ExpandRecordSet, each 
+				                                                                let 
+				                                                                    Dim = [Dimension], 
+				                                                                    NameFilter = List.MatchesAny( Dimensions[Dimension], each _ = Text.From ( Dim ))
+				                                                                in 
+				                                                                    NameFilter
+				                                        ),
+				                ExpandHierarchiesList = Table.ExpandListColumn(NameSelection, "Hierarchies"),
+				                ExpandHierarchiesRecordSet = Table.ExpandRecordColumn(ExpandHierarchiesList, "Hierarchies", {"Name", "Elements"}, {"Hierarchy", "Elements"}),
+				                
+				                ExpandElementsList_0 = Table.ExpandListColumn(ExpandHierarchiesRecordSet, "Elements"),
+				                ExpandElementsRecordSet_0 = Table.ExpandRecordColumn(ExpandElementsList_0, "Elements", {"Name", "Type", "Level", "Index", "Parents"}, {SysName[DimHierarchyNodeName] & Text.From(0), "ElementType", "ElementLevel", "ElementIndex", "Parents_0"}),
+				            
+				                ExpandParentElementsList_1 = Table.ExpandListColumn(ExpandElementsRecordSet_0, "Parents_0"),
+				                ExpandParentElementsRecordSet_1 = Table.ExpandRecordColumn(ExpandParentElementsList_1, "Parents_0", {"Name", "Parents"}, {SysName[DimHierarchyNodeName] & Text.From(1), "Parents_1"}),
+				                ExpandParentElementsList_2 = Table.ExpandListColumn(ExpandParentElementsRecordSet_1, "Parents_1"),
+				                ExpandParentElementsRecordSet_2 = Table.ExpandRecordColumn(ExpandParentElementsList_2, "Parents_1", {"Name", "Parents"}, {SysName[DimHierarchyNodeName] & Text.From(2), "Parents_2"}),
+				                ExpandParentElementsList_3 = Table.ExpandListColumn(ExpandParentElementsRecordSet_2, "Parents_2"),
+				                ExpandParentElementsRecordSet_3 = Table.ExpandRecordColumn(ExpandParentElementsList_3, "Parents_2", {"Name", "Parents"}, {SysName[DimHierarchyNodeName] & Text.From(3), "Parents_3"}),
+				                ExpandParentElementsList_4 = Table.ExpandListColumn(ExpandParentElementsRecordSet_3, "Parents_3"),
+				                ExpandParentElementsRecordSet_4 = Table.ExpandRecordColumn(ExpandParentElementsList_4, "Parents_3", {"Name", "Parents"}, {SysName[DimHierarchyNodeName] & Text.From(4), "Parents_4"}),
+				                ExpandParentElementsList_5 = Table.ExpandListColumn(ExpandParentElementsRecordSet_4, "Parents_4"),
+				                ExpandParentElementsRecordSet_5 = Table.ExpandRecordColumn(ExpandParentElementsList_5, "Parents_4", {"Name", "Parents"}, {SysName[DimHierarchyNodeName] & Text.From(5), "Parents_5"}),
+				                ExpandParentElementsList_6 = Table.ExpandListColumn(ExpandParentElementsRecordSet_5, "Parents_5"),
+				                ExpandParentElementsRecordSet_6 = Table.ExpandRecordColumn(ExpandParentElementsList_6, "Parents_5", {"Name", "Parents"}, {SysName[DimHierarchyNodeName] & Text.From(6), "Parents_6"}),
+				                ExpandParentElementsList_7 = Table.ExpandListColumn(ExpandParentElementsRecordSet_6, "Parents_6"),
+				                ExpandParentElementsRecordSet_7 = Table.ExpandRecordColumn(ExpandParentElementsList_7, "Parents_6", {"Name", "Parents"}, {SysName[DimHierarchyNodeName] & Text.From(7), "Parents_7"}),
+				                ExpandParentElementsList_8 = Table.ExpandListColumn(ExpandParentElementsRecordSet_7, "Parents_7"),
+				                ExpandParentElementsRecordSet_8 = Table.ExpandRecordColumn(ExpandParentElementsList_8, "Parents_7", {"Name", "Parents"}, {SysName[DimHierarchyNodeName] & Text.From(8), "Parents_8"}),
+				                ExpandParentElementsList_9 = Table.ExpandListColumn(ExpandParentElementsRecordSet_8, "Parents_8"),
+				                ExpandParentElementsRecordSet_9 = Table.ExpandRecordColumn(ExpandParentElementsList_9, "Parents_8", {"Name", "Parents"}, {SysName[DimHierarchyNodeName] & Text.From(9), "Parents_9"}),
+				                ExpandParentElementsList_10 = Table.ExpandListColumn(ExpandParentElementsRecordSet_9, "Parents_9"),
+				                ExpandParentElementsRecordSet_10 = Table.ExpandRecordColumn(ExpandParentElementsList_10, "Parents_9", {"Name"}, {SysName[DimHierarchyNodeName] & Text.From(10)}),
+				
+				                DimensionElements = ExpandParentElementsRecordSet_10,
+				                RemoveNullElements = Table.SelectRows(DimensionElements, each Record.Field( _ , SysName[DimHierarchyNodeName] & Text.From(0)) <> null),   //null-elements are to be removed for the hierarchy flattening function (if any) to work correctly 
+				                AddElementKey = Table.AddColumn(RemoveNullElements, "ElementKey", each "[" & [Dimension] & "].[" & Text.From(Record.Field( _ , SysName[DimHierarchyNodeName] & Text.From(0))) & "]", type text),
+				                
+				                AddHierarchyPath = Table.AddColumn(AddElementKey, "HierarchyPath", each null, type text),
+				                TreeNodeNames = List.Select(Table.ColumnNames(AddHierarchyPath), each Text.StartsWith( _ , SysName[DimHierarchyNodeName]) ),
+				                ReverseHierachy = fn_reverseHierarchy(AddHierarchyPath, TreeNodeNames, "HierarchyPath"),
+				
+				                TransformColumnTypes = Table.TransformColumnTypes(ReverseHierachy, {{"ElementIndex", Int64.Type}})
+				            in
+				                TransformColumnTypes
+				        else if (try ConnectionConfig[ConnectionType] otherwise "REST") = "DataFiles" 
+				        then
+				            if Table.RowCount(Source_TransactionLog) > 0
+				            then
+				                Table.FromColumns(
+				                    {     
+				                          {}
+				                        , {}
+				                        , {}
+				                        , {}
+				                        , {}
+				                        , {}
+				                        , {}
+				                        , {}
+				                        , {}
+				                        , {}
+				                        , {}
+				                        , {}
+				                        , {}
+				                        , {}
+				                        , {}
+				                        , {}
+				                        , List.Distinct(TransactionLogDimensions[ElementKey])
+				                        , {}
+				                    }, Table.ColumnNames(SysNullTables[DimensionElements])
+				                )
+				            else
+				                SysNullTables[DimensionElements]
+				        else
+				            SysNullTables[DimensionElements]
+				in
+				    try Source otherwise SysNullTables[DimensionElements]
+				```
+
+	annotation PBI_ResultType = Exception
+
+	annotation PBI_NavigationStepName = Navigation
+

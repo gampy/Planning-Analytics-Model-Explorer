@@ -1,0 +1,36 @@
+table SysLastRefresh
+	isHidden
+	lineageTag: 070575d7-5752-496f-98dc-b137c1f1e846
+
+	column LastRefreshDate
+		dataType: dateTime
+		isHidden
+		formatString: General Date
+		lineageTag: b62504cc-751f-4db1-a260-f6242730fea5
+		summarizeBy: none
+		sourceColumn: LastRefreshDate
+
+		variation Variation
+			isDefault
+			relationship: 0a7dfcf0-a15b-4841-953e-5f4d23dc2543
+			defaultHierarchy: LocalDateTable_85cfbfb2-c37d-49e6-bd66-cc7c131b7f6d.'Date Hierarchy'
+
+		changedProperty = IsHidden
+
+		annotation SummarizationSetBy = Automatic
+
+	partition SysLastRefresh-bfb41ae3-dfba-4870-99c5-8ebf45d182b0 = m
+		mode: import
+		queryGroup: SysData
+		source =
+				// Copyright © Alex Zaitsev
+				
+				let
+				    Source = #table(type table[LastRefreshDate = datetime], {{ DateTime.FixedLocalNow() }})
+				in
+				    Source
+
+	annotation PBI_ResultType = Table
+
+	annotation PBI_NavigationStepName = Navigation
+

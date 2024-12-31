@@ -1,0 +1,2194 @@
+expression DataFiles_RulesAndProcesses = ```
+		// Copyright © Alex Zaitsev
+		
+		let
+		    Result = 
+		        if ConnectionConfig[ConnectionType] = "DataFiles" then
+		            let 
+		                // Avoiding a dynamic data source when updating on the Service
+		                Source = ( try Table.Buffer(Folder.Files(#"31 DATA FILES PATH")) otherwise Table.FromRecords({ [Content = null, Name = null, Extension = null] }) )[[Content], [Name], [Extension]],
+		                RemoveExtensionFromName = Table.ReplaceValue(  Source
+		                            , each [Extension]
+		                            , each ""
+		                            , Replacer.ReplaceText
+		                            , {"Name"}  
+		                ), 
+		                LowCaseExtension = Table.TransformColumns(  RemoveExtensionFromName, { "Extension", ( val ) => Text.Lower(val) }, null, MissingField.Ignore ),   
+		                
+		                // Cubes with no rules
+		
+		                CubeExtensions = FileExtentions{[Name = "Cube"]}[Extension],
+		                CubeSelection  = Table.SelectRows(LowCaseExtension, each [Extension] = Text.From(CubeExtensions) and [Content] <> null),
+		                TransformCubeSelection = Table.FromRecords(
+		                    Table.TransformRows(CubeSelection, ( rec ) as record => Record.TransformFields(rec, {{ "Content", each Binary.FromText("") }, { "Extension", each Text.From(FileExtentions{[Name = "Rule"]}[Extension]) }}))
+		                ),
+		
+		                // Rules and Processed
+		
+		                RuleAndProcessExtensions = { FileExtentions{[Name = "Rule"]}[Extension], FileExtentions{[Name = "Process"]}[Extension] },
+		                RuleAndProcessSelection = Table.SelectRows(LowCaseExtension, each 
+		                            let 
+		                                Ext = [Extension], 
+		                                ExtFilter = List.MatchesAny( RuleAndProcessExtensions, each _ = Text.From(Ext))
+		                            in
+		                                ExtFilter
+		                ),
+		
+		                // Rows union
+		                RowsUnion = Table.Combine({ TransformCubeSelection, RuleAndProcessSelection }),
+		                NameSelection = Table.SelectRows(RowsUnion, each 
+		                            let 
+		                                Name = [Name], 
+		                                NameFilter = List.MatchesAny( KeyWords[SysMetaDataRef], each not Text.StartsWith( Name, _ ))
+		                            in
+		                                NameFilter
+		                ),
+		                RowsGrouping = Table.Group(NameSelection, { "Name", "Extension" }, { "Content", each Binary.Combine([Content]) }, null, Comparer.OrdinalIgnoreCase),
+		
+		                // Other transformations
+		                AddMetaData = Table.NestedJoin(RowsGrouping
+		                            , "Extension"
+		                            , FileExtentions
+		                            , "Extension"
+		                            , "MetaDataTable"
+		                            , JoinKind.Inner 
+		                        ),  
+		                ExpandMetaData = Table.ExpandTableColumn(AddMetaData, "MetaDataTable", {"Name"}, {"MetaData"}),                                                                                      
+		                TextContent = Table.AddColumn(ExpandMetaData, "TextContent", each Text.FromBinary([Content])),
+		                RemovedBinaryContent = Table.RemoveColumns(TextContent,{"Content", "Extension"})
+		
+		in
+		    RemovedBinaryContent
+		        else null
+		in
+		    Result
+		```
+	lineageTag: aa8c5d17-d5bb-436b-867d-27ef7a1f1748
+	queryGroup: Data\UserData\DataFilesLoad
+
+	annotation PBI_ResultType = Null
+
+	annotation LinkedQueryName = FolderLoad_RulesAndProcesses
+
+	annotation PBI_NavigationStepName = Navigation
+
+expression KeyWords =
+		let
+		    KeyWords =
+		                [
+		                      RuleCubeRef = {"DB", "ConsolidatedMin", "ConsolidatedMax", "ConsolidatedAvg", "ConsolidatedCount", "ConsolidatedCountUnique"}
+		                    , RuleAttrRef = {"AttrN", "AttrS"}
+		                    , ProcessCubeWriteRef = {"CellPutN", "CellPutS", "CellIncrementN", "CellPutProportionalSpread"}
+		                    , ProcessCubeReadRef = {"CellGetN", "CellGetS"}
+		                    , ProcessProcessRef = {"ExecuteProcess"}
+		                    , FeederRef = "FEEDERS;"
+		                    , SkipcheckRef = "SKIPCHECK;"
+		                    , AllFunctionsRef = List.Combine({ RuleCubeRef, RuleAttrRef, ProcessCubeWriteRef, ProcessCubeReadRef, ProcessProcessRef, { SkipcheckRef }, { FeederRef } }) // update if a new group of functions is added
+		
+		                    , SysMetaDataRef = {"}"}
+		                    , ElAttrRef = "}ElementAttributes_"
+		                    , TransactionLogRef = "tm1s"
+		                ]
+		in
+		    KeyWords
+	lineageTag: c3a85601-6f73-48a0-812b-27635f0bd9b3
+	queryGroup: Data\MetaData
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Record
+
+expression FileExtentions = ```
+		let
+		    Source = 
+		        #table(
+		                type table [Name = text, Extension = text], 
+		                {
+		                      {"Cube", ".cub"}
+		                    , {"Dimension", ".dim"}
+		                    , {"Rule", ".rux"}
+		                    , {"Process", ".pro"}
+		                    , {"TransactionLog", ".log"}
+		                }
+		
+		        )
+		in
+		    Source
+		```
+	lineageTag: 85aef128-f876-4fb7-9874-423e73f61a72
+	queryGroup: Data\MetaData
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+
+expression fn_prepareCodeContent = ```
+		// Copyright © Alex Zaitsev
+		
+		// Сleaning and preparing the code of rules and processes before any parsing
+		(RawText as text) =>
+		    let
+		        KeyWords = KeyWords[AllFunctionsRef],
+		        Counter = List.Count(KeyWords),
+		
+		        // Remove commented blocks: #, line feeds: #(lf).
+			    // Commented blocks should be removed before the quote-dependent splitting since non-closed quotes may occur in commented rows
+		        SplitTextByCarriageReturn = Splitter.SplitTextByAnyDelimiter({"#(cr)", "#(lf)"}, QuoteStyle.None)(RawText), 
+		        RemoveCommentedRows = List.Select(SplitTextByCarriageReturn, each not Text.StartsWith( Text.Trim ( _ ) ,"#" )), 
+		        TextWithoutComments = Text.Combine(RemoveCommentedRows),	
+		
+		        // Remove control characters
+		        CleanedText = Text.Clean(TextWithoutComments),	
+		
+		        // Escaping single quotes 
+			    EscapedSingleQuotes = Text.Replace(CleanedText, "'", """'"),
+		        // Split text by whitespaces
+		        SplitText = Splitter.SplitTextByWhitespace(QuoteStyle.Csv)(EscapedSingleQuotes), 
+		        // Collect text
+		        CombinedText = Text.Combine(SplitText),
+		
+		        // Upper KeyWords 
+		        fn_upperKeyWords = (text as text, i as number) =>
+		            let
+		                ReplaceTextCase = Text_ReplaceSubstring(text, KeyWords{i}, KeyWords{i}, true)
+		            in
+		                if i >= Counter
+		                then text
+		                else @fn_upperKeyWords(ReplaceTextCase, i + 1)
+		        ,  
+		
+		        PreparedText = fn_upperKeyWords(CombinedText, 0)
+		                   
+		    in 
+		        PreparedText
+		```
+	lineageTag: c60c99bb-9925-4d87-a362-792ca30b13a0
+	queryGroup: Functions\RulesProcessesHandling
+
+	annotation PBI_ResultType = Function
+
+	annotation PBI_NavigationStepName = Navigation
+
+expression List_Upper = ```
+		let func =  (List as list) as list =>
+		    List.Transform(List, each Text.Upper( _ ) ),
+		
+		    documentation = [
+		    Documentation.Name =  " List_Upper",
+		    Documentation.Description = " ",
+		    Documentation.LongDescription = " Returns the result of converting all list elements to uppercase ",
+		    Documentation.Category = " List ",
+		    Documentation.Source = " ",
+		    Documentation.Version = " 1.0 ",
+		    Documentation.Author = " Copyright © Alex Zaitsev ",
+		    Documentation.Examples = {[Description =  " ",
+		    Code = " List_Upper ({""CellPutS"", ""CellPutN""}) ",
+		    Result = " {""CELLPUTS"", ""CELLPUTN""} "]}
+		    ]
+		 in  
+		    Value.ReplaceType(func, Value.ReplaceMetadata(Value.Type(func), documentation))
+		```
+	lineageTag: 70a40437-7460-42ef-a7ca-6eeef1c0bedc
+	queryGroup: Functions\Lib\BasicEx
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Function
+
+	annotation LinkedQueryName = List_Upper
+
+expression DataFiles_Cubes = ```
+		// Copyright © Alex Zaitsev
+		
+		let
+		   Result = 
+		      if ConnectionConfig[ConnectionType] = "DataFiles" then
+		            let
+		                // Avoiding a dynamic data source when updating on the Service
+		                Source = ( try Table.Buffer(Folder.Files(#"31 DATA FILES PATH")) otherwise Table.FromRecords({ [Name = null, Extension = null] }) )[[Name], [Extension]],
+		                CubeSelection1 = Table.SelectRows(Source, each FileExtentions{[Name = "Cube"]}[Extension] = Text.Lower([Extension])),
+		                //no cubes in the model given
+		                CubeSelection2 = if Table.IsEmpty(CubeSelection1) then Table.SelectRows(Source, each FileExtentions{[Name = "Rule"]}[Extension] = Text.From([Extension])) else CubeSelection1,
+		                NameSelection = Table.SelectRows(CubeSelection2, each 
+		                                                        let 
+		                                                            Name = [Name], 
+		                                                            NameFilter = List.MatchesAny( KeyWords[SysMetaDataRef], each not Text.StartsWith( Name, _ ))
+		                                                        in 
+		                                                            NameFilter
+		                                ),
+		                RemoveExtensionFromName = Table.ReplaceValue(  NameSelection
+		                                                                , each [Extension]
+		                                                                , each ""
+		                                                                , Replacer.ReplaceText
+		                                                                , {"Name"}  
+		                                                            ),                        
+		                RemovedExt = Table.RemoveColumns(RemoveExtensionFromName,{"Extension"}),
+		                RenameColumn = Table.RenameColumns(RemovedExt,{{"Name", "Cube"}})
+		            in
+		                RenameColumn
+		      else null
+		in
+		    Result
+		```
+	lineageTag: caefe577-f8ee-4a89-8889-066ab433028c
+	queryGroup: Data\UserData\DataFilesLoad
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Null
+
+expression Text_ReplaceSubstring = ```
+		let func = (text as nullable text, oldText as text, newText as text, optional ignoreCase as logical) as text =>
+		    let
+		        UppercaseText = Text.Upper(text),
+		        UppercaseOldText = Text.Upper(oldText),
+		        OldTextStartPos = Text.PositionOf(UppercaseText, UppercaseOldText, Occurrence.All),
+		        ReplacedRange = if ignoreCase = null or ignoreCase = false then 
+		                            Text.Replace(text, oldText, newText)    
+		                        else if List.IsEmpty(OldTextStartPos ) then text
+		                        else 
+		                        Text.ReplaceAll(text, OldTextStartPos),
+		            
+		        Text.ReplaceAll = (text as text, positionList as list) as text =>
+		            let
+		                firstPos = List.First(positionList),
+		                restPos = List.Skip(positionList, 1),
+		                currentText = Text.ReplaceRange(text, firstPos, Text.Length(oldText), newText),
+		                final = if List.IsEmpty(restPos) then currentText
+		                        else @Text.ReplaceAll(currentText, restPos)
+		            in
+		                final
+		    in
+		        ReplacedRange,
+		
+		    documentation = [
+		    Documentation.Name =  " Text_ReplaceSubstring ",
+		    Documentation.Description = " ",
+		    Documentation.LongDescription = " Returns the result of replacing all occurrences of text value old in text value text with text value new. Case sensivity depends on the ""ignoreCase"" flag value ",
+		    Documentation.Category = " Text ",
+		    Documentation.Source = " ",
+		    Documentation.Version = " 1.0 ",
+		    Documentation.Author = " Internet ",
+		    Documentation.Examples = {[Description =  " TBD ",
+		    Code = " Text_ReplaceSubstring (""CellPutS CellPutN"", ""cellputs"", ""CELLPUTS"", true) ",
+		    Result = " ""CELLPUTS CellPutN"" "]}
+		    ]
+		 in  
+		    Value.ReplaceType(func, Value.ReplaceMetadata(Value.Type(func), documentation))
+		```
+	lineageTag: 3c1c5268-7344-4ba1-8f84-aae8480f2d95
+	queryGroup: Functions\Lib\BasicEx
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Function
+
+/// Mandatory. The address of the http(s) connection to the server. Use "http(s)://HttpHost:HttpPort" pattern.
+expression '11 HTTP(S)://HOST:PORT' = "https://localhost:8886" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=false]
+	lineageTag: e43c0deb-abe9-406f-98fd-3918ade46b41
+	queryGroup: Settings\Params
+
+	annotation PBI_ResultType = Text
+
+	annotation PBI_NavigationStepName = Navigation
+
+/// Mandatory.
+expression '12 LOGIN' = "admin" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=false]
+	lineageTag: f251a30b-f5b0-4736-8fc3-4c5ac41d1e1b
+	queryGroup: Settings\Params
+
+	annotation PBI_ResultType = Text
+
+/// Optional.
+/// The password entered is not hidden behind asterisks!
+expression '13 PASSWORD' = "apple" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=false]
+	lineageTag: 24f209f8-7711-454f-aae8-62f61c2863cb
+	queryGroup: Settings\Params
+
+	annotation PBI_ResultType = Text
+
+expression fn_sendHttpRequest = ```
+		let func = (RequestContent as text, optional RawBody as text, optional RequestNo as nullable number) =>  
+		    let 
+		        //fn_checkRequestError Start
+		        fn_checkRequestError = (Response as nullable any, ServerResponse as nullable any) as record =>
+		            if Response[HasError]?
+		                then [HasError = Response[HasError]?, ErrorReason = Response[Error]?[Reason]?, ErrorMessage = Response[Error]?[Message]?, ErrorDetails = Response[Error]?[Details]?]
+		                else 
+		                    if ServerResponse[HasError]? 
+		                        then [ HasError = ServerResponse[HasError]?, ErrorReason = ServerResponse[Error]?[Reason]?, ErrorMessage = ServerResponse[Error]?[Message]?, ErrorDetails = ServerResponse[Error]?[Details]? ]
+		                        else if not ServerResponse[HasError] and ServerResponse[Value] = null
+		                        then [ HasError = true, ErrorReason = "Unknown", ErrorMessage = "Incorrect connection or authorization parameters may have been specified", ErrorDetails = null ]
+		                        else [ HasError = false, ErrorReason = null, ErrorMessage = null, ErrorDetails = null ],
+		        //fn_checkRequestError End
+		
+		        //fn_trySendReques Start
+		        fn_trySendRequest = (AttemptNo as number, ResponseMetaData as table) =>
+		            let
+		                // Request parameteres
+		                NumberInPool = if (RequestNo = null) then 1 else RequestNo,  
+		                RequestDelay =  (Number.IntegerDivide(NumberInPool - 1, HttpRequestPool) + 1) * HttpRequestLatencySec * Number.Power(2, (AttemptNo - 1)) - HttpRequestLatencySec, // throttling
+		                                    
+		                // Request URL, headers, options
+		                // Avoiding a dynamic data source when updating on the Service
+		                Request = #"11 HTTP(S)://HOST:PORT" & "/api/v1/",
+		                Options = [
+		                        Headers = [
+		                                    #"Authorization" = AuthType & " " & Auth, 
+		                                    #"Content-Type" = "application/json;charset=utf-8",
+		                                    #"Cache-Control" = "no-cache, must-revalidate"
+		                        ],
+		                        RelativePath = RequestContent,
+		                        Content = Text.ToBinary(RawBody),
+		                        Timeout = #duration(0, 0, 0, HttpRequestTimeoutSec),
+		                        IsRetry = true,
+		                        ManualStatusHandling = 
+		                            {
+		                                200, 201, 202,                  // Success, record the request result  
+		                                408, 429, 503, 504, 509,        // Handled error, repeat the request, if failure again - record the request result
+		                                401, 403, 404                   // Handled error, record the request result  
+		                            }
+		                ], 
+		
+		                //Send Request & BufferData
+		                SendRequest = Function.InvokeAfter( () => try Web.Contents(Request, Options), #duration(0, 0, 0, RequestDelay) ),
+		
+		                BufferedData = SendRequest[[HasError]] & [Value = Binary.Buffer(SendRequest[Value])],  //avoid a risk of multple PQ calls     
+		                ResponseStatus = try Value.Metadata(SendRequest[Value]?)[Response.Status]?,
+		
+		                Error = fn_checkRequestError(BufferedData, ResponseStatus),
+		                HttpResponseStatus = if ResponseStatus[HasError]? then null else ResponseStatus[Value], 
+		                RequestResponseTime = if HttpResponseStatus <> null then DateTime.LocalNow() else null, // avoid lazy evaluation
+		                AppendResponseMetaData = Table.InsertRows(    ResponseMetaData
+		                                                            , Table.RowCount(ResponseMetaData)
+		                                                            , {[  RequestNo = RequestNo
+		                                                                , RequestContent = RequestContent
+		                                                                , RequestBody = RawBody
+		                                                                , AttemptNo = AttemptNo
+		                                                                , RequestDelay = RequestDelay
+		                                                                , RequestResponseTime = RequestResponseTime
+		                                                                , HasConnectionError = Error[HasError]
+		                                                                , ConnectionErrorReason = Error[ErrorReason]
+		                                                                , ConnectionErrorMessage = Error[ErrorMessage]
+		                                                                , ConnectionErrorDetails = Error[ErrorDetails]
+		                                                                , HttpResponseStatus = HttpResponseStatus
+		                                                            ]}
+		                                                        ), 
+		                RequestResult = if (Error[HasError]) 
+		                then 
+		                    Record.AddField([], "@metadata", AppendResponseMetaData)
+		                else
+		                    let                                
+		                        HttpRequestResult = if (List.MatchesAny({408, 429, 503, 504, 509}, each _ = HttpResponseStatus) and AttemptNo < HttpRequestMaxAttempts)
+		                                        then
+		                                            @fn_trySendRequest(AttemptNo + 1, AppendResponseMetaData)                                                       // Repeat the request
+		                                        else 
+		                                            Record.AddField(try Json.Document(BufferedData[Value]) otherwise [], "@metadata", AppendResponseMetaData)       // Add @metadata field to the request result
+		                    in
+		                        HttpRequestResult
+		                in
+		                   RequestResult, 
+		        //fn_trySendReques End
+		        
+		        AuthType = if (ConnectionConfig[Namespace] = "") then "Basic" else "CAMNamespace",
+		        Auth = Binary.ToText(
+		                    Text.ToBinary(ConnectionConfig[Login] &
+		                    ":" & ConnectionConfig[Password] &
+		                    ( if (ConnectionConfig[Namespace] = null or ConnectionConfig[Namespace] = "") then "" else ":" & ConnectionConfig[Namespace] )
+		                )               
+		                , BinaryEncoding.Base64), 
+		        
+		        HttpRequestPool = SettingsConfigDefault[HttpRequestPool], 
+		        HttpRequestLatencySec = SettingsConfigDefault[HttpRequestLatencySec],
+		        HttpRequestMaxAttempts = SettingsConfigDefault[HttpRequestMaxAttempts],
+		        HttpRequestTimeoutSec = SettingsConfigDefault[HttpRequestTimeoutSec],
+		        ResponseTable = fn_trySendRequest(1, #table(type table[
+		                                                                  RequestNo = number
+		                                                                , RequestContent = text
+		                                                                , RequestBody = text
+		                                                                , AttemptNo = number
+		                                                                , RequestDelay = number
+		                                                                , RequestResponseTime = datetime                                                                
+		                                                                , HasConnectionError = logical
+		                                                                , ConnectionErrorReason = text
+		                                                                , ConnectionErrorMessage = text
+		                                                                , ConnectionErrorDetails = text
+		                                                                , HttpResponseStatus = number
+		                                                            ], {}) )
+		    in
+		        ResponseTable,
+		
+		    documentation = [
+		    Documentation.Name =  " fn_sendHttpRequest",
+		    Documentation.Description = " ",
+		    Documentation.LongDescription = " Managing HTTP requests",
+		    Documentation.Category = " Data extraction ",
+		    Documentation.Source = " ",
+		    Documentation.Version = " 1.81.pa-exp ",
+		    Documentation.Author = " Copyright © Alex Zaitsev ",
+		    Documentation.Examples = {[Description =  "",
+		    Code = " fn_sendHttpRequest( ""Users"", null, 1 ) ",
+		    Result = "A record in the format [ @odata.context as text, value as List, @metadata as Table ]"]}
+		    ]
+		in
+		    Value.ReplaceType(func, Value.ReplaceMetadata(Value.Type(func), documentation))
+		```
+	lineageTag: ca598f44-28c0-4f7a-b3d6-14eb5cfdd925
+	queryGroup: Functions\DataExtraction
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Function
+
+expression fn_requestMDX = ```
+		let func = (Cube as text, Dims as record, optional SuppressZeros as nullable logical, optional RequstNo as nullable number, optional mode as nullable number) =>  
+		        let
+		            MDX1 = "{ ""MDX"":""SELECT ",
+		            MDX2 = if (SuppressZeros = null or SuppressZeros = true) then "NON EMPTY " else "",
+		            MDX3 = 
+		                        let
+		                        DimsToTable = Record.ToTable(Dims),
+		                        DimHiers = Table.FromList(DimsToTable[Name], Splitter.SplitTextByDelimiter(":", QuoteStyle.Csv),  { "Dimension", "Hierarchy" } ),
+		                        ComposeDimHierValues = Table.FromColumns({ DimHiers[Dimension], DimHiers[Hierarchy], DimsToTable[Value] }, { "Dimension", "Hierarchy", "Value" }),
+		                        CreateMembers = Table.FromRecords
+		                                            (Table.TransformRows(ComposeDimHierValues
+		                                                , ( row ) => Record.TransformFields(row, { "Value", each 
+		                                                if List.IsEmpty( _ ) 
+		                                                then { "[" & row[Dimension] & "].[" & ( if row[Hierarchy] = null then row[Dimension] else row[Hierarchy] ) & "].MEMBERS" } 
+		                                                else List.Transform( _ , each "[" & row[Dimension]  & "].[" & ( if row[Hierarchy] = null then row[Dimension] else row[Hierarchy] ) & "].[" & _ & "]" )
+		                                                })
+		                                            )),
+		                            CreateAxes = Table.TransformColumns(CreateMembers, { "Value", ( value ) => "{" & Text.Combine(value, ",") & "}" }),
+		                            CombineAxes = Text.Combine(CreateAxes[Value], " * ")
+		                        in
+		                            CombineAxes,
+		            MDX4 = " ON AXIS(0) FROM [" & Cube & "]"" }",
+		            MDX = MDX1 & MDX2 & MDX3 & MDX4,
+		    
+		            SendRequest = if (mode = null or mode = 0) 
+		            then
+		                fn_sendHttpRequest("ExecuteMDX?$expand=Cells($select=Ordinal,Value;$expand=Members)", MDX, RequstNo)  
+		            else
+		                fn_sendHttpRequest("ExecuteMDX?$expand=Axes($expand=Tuples($select=Ordinal;$expand=Members($select=Ordinal,Name,UniqueName))),Cells($select=Ordinal,Value)", MDX, RequstNo)
+		            in
+		                SendRequest,
+		    
+		    documentation = [
+		    Documentation.Name =  " fn_requestMDX",
+		    Documentation.Description = " ",
+		    Documentation.LongDescription = " Returns cube data for the specified MDX expression ",
+		    Documentation.Category = " HTTP Request ",
+		    Documentation.Source = " ",
+		    Documentation.Version = " 2.2 ",
+		    Documentation.Author = " Copyright © Alex Zaitsev ",
+		    Documentation.Examples = {[Description =  "",
+		    Code = " fn_requestMDX(""Cube1"", [Year = {""20X3"", ""20X4""}, Month = {}, Version = {""Plan""}, StockItems:Brands = {}, Measures = {""Qty"", ""Amount""}])",
+		    Result = "Raw ""Cube1"" data of the measures ""Qty"", ""Amount"" for the specified dimension elements of Dim1 and Dim3 and all elements of the hierarchy ""Hier"" in Dim2. Mode = 0 is the default mode, applicable for both Views and MDX queries. Mode = 1 provides faster data transformation in most cases, but it is only applicable for MDX queries"]}
+		    ]
+		in
+		    Value.ReplaceType(func, Value.ReplaceMetadata(Value.Type(func), documentation))
+		```
+	lineageTag: 64a23768-d6ec-4dda-934c-a3f03d71ef07
+	queryGroup: Functions\DataExtraction
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Function
+
+expression fn_tabulateCubeData = ```
+		let func = (Cells as nullable list, optional Axes as nullable list, optional DimensionNames as nullable list) =>  
+		    let
+		        fn_pivotTuples = (TableToPivot as table) as table=>
+		            let
+		                TransformTable =  Table.TransformColumns(TableToPivot, 
+		                                    { "Tuples.Members", ( value ) => 
+		                                                let
+		                                                    CreateTableFromListOfRecords = try Table.FromRecords(value, {"Name", "UniqueName"}) otherwise Table.FromRows({}, {"Name", "UniqueName"}),
+		                                                    GetDimensionNames = Table.TransformColumns(CreateTableFromListOfRecords, 
+		                                                                        { "UniqueName", ( value ) => Text.BetweenDelimiters(value, "[", "].", {1, RelativePosition.FromStart}, {0, RelativePosition.FromStart}) }
+		                                                    ),
+		                                                    PivotTable = Table.Pivot(GetDimensionNames, List.Distinct(GetDimensionNames[UniqueName]), "UniqueName", "Name")
+		                                                in
+		                                                   PivotTable 
+		                                    }
+		                ),
+		            ColumnNames = if (DimensionNames = null or List.IsEmpty(DimensionNames))
+		                    then Table.ColumnNames(TransformTable[Tuples.Members]{0})
+		                    else DimensionNames,
+		            ExpandTargetTable = Table.ExpandTableColumn(TransformTable, "Tuples.Members", Table.ColumnNames(TransformTable[Tuples.Members]{0}), ColumnNames)
+		        in
+		            ExpandTargetTable,
+		
+		        //1. Cells
+		        CellsNullCheck = if Cells = null then {} else Cells,
+		        ConvertCellsToTable = Table.FromList(CellsNullCheck, Splitter.SplitByNothing(), {"CellsRecordSet"}, null, ExtraValues.Ignore),
+		        //ExpandCellsRecordSet = Table.ExpandRecordColumn(ConvertCellsToTable, "CellsRecordSet", {"Ordinal", "Value"}, {"Cells.Ordinal", "Cells.Value"}),
+		        ExpandCellsAndTuplesRecordSet = Table.ExpandRecordColumn(ConvertCellsToTable, "CellsRecordSet", {"Ordinal", "Members", "Value"}, {"Tuples.Ordinal", "Tuples.Members", "Value"}),
+		        
+		        GetTargetTable = if Axes = null 
+		        then 
+		            fn_pivotTuples(ExpandCellsAndTuplesRecordSet) 
+		        else 
+		            let
+		                //2. Axes members
+		                ConvertAxesToTable = Table.FromList(Axes, Splitter.SplitByNothing(), {"AxesRecordSet"}, null, ExtraValues.Ignore),
+		                ExpandAxesRecordSet = Table.ExpandRecordColumn(ConvertAxesToTable, "AxesRecordSet", {"Tuples"}),
+		                ExpandTuplesList = Table.ExpandListColumn(ExpandAxesRecordSet, "Tuples"),
+		                ExpandTuplesRecordSet = Table.ExpandRecordColumn(ExpandTuplesList, "Tuples", {"Ordinal", "Members"}, {"Tuples.Ordinal", "Tuples.Members"}),
+		                TuplesTargetTable =  fn_pivotTuples(ExpandTuplesRecordSet),
+		
+		                //3. Cells along the Members 
+		                CellsAlongMembers = Table.NestedJoin(
+		                                        TuplesTargetTable,
+		                                        "Tuples.Ordinal",   
+		                                        ExpandCellsAndTuplesRecordSet,
+		                                        "Tuples.Ordinal",
+		                                        "Cells",
+		                                        JoinKind.Inner
+		                ),
+		                ExpandCells = Table.ExpandTableColumn(CellsAlongMembers, "Cells", {"Value"})
+		            in
+		                ExpandCells
+		        in
+		            GetTargetTable,
+		    
+		    documentation = [
+		    Documentation.Name =  " fn_tabulateCubeData",
+		    Documentation.Description = " ",
+		    Documentation.LongDescription = " Converts the raw data returned by an MDX query into a tabular form (the value of the cell is placed next to the dimension elements).
+		                                    Ordinarily used with a dataset returned by the fn_requestCubeData() function. 
+		                                    If explicit dimension names in the function call are omitted the dimension names from the Axes parameter data will be extracted. 
+		                                    If the Axes list is empty the names must be specified explicitly in the third function parameter.",
+		    Documentation.Category = " Data processing ",
+		    Documentation.Source = " ",
+		    Documentation.Version = " 2.2 ",
+		    Documentation.Author = " Copyright © Alex Zaitsev ",
+		    Documentation.Examples = {[Description =  "",
+		    Code = " fn_tabulateCubeData( { Axes list }, { Cells list }, { Dim1, Dim2, Dim3 } ) ",
+		    Result = "A table in the format | Dim1 | Dim2 | Dim3 | Value |"]}
+		    ]
+		in
+		    Value.ReplaceType(func, Value.ReplaceMetadata(Value.Type(func), documentation))
+		```
+	lineageTag: 0d70c881-2d72-454e-8dc6-e34a2bc22c4b
+	queryGroup: Functions\DataExtraction
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Function
+
+expression SysName = ```
+		let
+		    SysNames =
+		                [
+		                      CubeTreeNodeName = "CubeLevel_"
+		                    , CubeTreeAreaDefinition = "Area definition" 
+		                    , ProcTreeNodeName = "ProcLevel_"
+		                    , DimTransactionLogName = "Dim_"
+		                    , DimHierarchyNodeName = "Element_"
+		                    , SingleHttpRequestName = "sREST_"
+		                    , MultipleHttpRequestName = "mREST_"
+		                ]
+		in
+		    SysNames
+		```
+	lineageTag: 57d0c19f-f3ee-42f2-b6f3-560376df4148
+	queryGroup: SysData
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Record
+
+expression Source_Rules = ```
+		// Copyright © Alex Zaitsev
+		
+		let
+		    Source = 
+		        if (try ConnectionConfig[ConnectionType] otherwise "REST") = "REST" 
+		        then
+		            let
+		                Value = HttpRequests[Rules][value],
+		                ConvertToTable = Table.FromList(Value, Splitter.SplitByNothing(), {"RecordSet"}, null, ExtraValues.Ignore),
+		                ExpandRecordSet = Table.ExpandRecordColumn(ConvertToTable, "RecordSet", {"Name", "Rules"}, {"Name", "TextContent"}),
+		                AddMetaDataName = Table.AddColumn(ExpandRecordSet, "MetaData", each FileExtentions{[Name = "Rule"]}[Name])    
+		            in
+		                AddMetaDataName                                       
+		        else if (try ConnectionConfig[ConnectionType] otherwise "REST") = "DataFiles"
+		        then
+		            DataFiles_RulesAndProcesses
+		        else
+		            null,
+		    MetaDataSelection = Table.SelectRows(Source, each FileExtentions{[Name = "Rule"]}[Name] = Text.From([MetaData])),
+		    CubesWithRules = Table.SelectRows(MetaDataSelection, each [TextContent] <> null),
+		    //Prepare Content for Parsing
+		    PreparedContent = Table.TransformColumns(CubesWithRules, { "TextContent", ( text ) => fn_prepareCodeContent(text) })
+		in
+		    PreparedContent
+		```
+	lineageTag: 5b515ed7-b609-4f29-b2bf-22f6ae6855ef
+	queryGroup: Data\UserData
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+
+expression Source_Processes = ```
+		// Copyright © Alex Zaitsev
+		
+		let
+		    Source = 
+		        if (try ConnectionConfig[ConnectionType] otherwise "REST") = "REST" 
+		        then
+		            let
+		                Value = HttpRequests[Processes][value],
+		                ConvertToTable = Table.FromList(Value, Splitter.SplitByNothing(), {"RecordSet"}, null, ExtraValues.Ignore),
+		                ExpandRecordSet = Table.ExpandRecordColumn(ConvertToTable, "RecordSet", {"Name", "PrologProcedure", "MetadataProcedure", "DataProcedure", "EpilogProcedure"}),
+		//                    NameSelection = Table.SelectRows(ExpandRecordSet, each 
+		//                                                        let 
+		//                                                            Name = [Name], 
+		//                                                            NameFilter = List.MatchesAny( KeyWords[SysMetaDataRef], each not Text.StartsWith( Name, _ ))
+		//                                                        in 
+		//                                                            NameFilter
+		//                                                ),
+		                AddTextContent = Table.AddColumn(ExpandRecordSet, "TextContent", each 
+		                                [PrologProcedure]
+		                                & "#(cr)#(lf)"
+		                                & [MetadataProcedure]
+		                                & "#(cr)#(lf)"
+		                                & [DataProcedure]
+		                                & "#(cr)#(lf)"
+		                                & [EpilogProcedure]),
+		                RemoveColumns = Table.RemoveColumns(AddTextContent,{"PrologProcedure", "MetadataProcedure", "DataProcedure", "EpilogProcedure"}),
+		                AddMetaDataName = Table.AddColumn(RemoveColumns, "MetaData", each FileExtentions{[Name = "Process"]}[Name])
+		            in
+		                AddMetaDataName
+		        else if (try ConnectionConfig[ConnectionType] otherwise "REST") = "DataFiles" 
+		        then
+		            DataFiles_RulesAndProcesses
+		        else
+		            null,
+		
+		    MetaDataSelection = Table.SelectRows(Source, each FileExtentions{[Name = "Process"]}[Name] = Text.From([MetaData])),
+		
+		    PreparedContent = Table.TransformColumns(MetaDataSelection, { "TextContent", ( text ) => 
+		                                                                                            let
+		                                                                                                StartPos = if Text.PositionOf(text, "#****Begin: Generated Statements***") > 0 then Text.PositionOf(text, "#****Begin: Generated Statements***", Occurrence.First) else 0,
+		                                                                                                EndPos = if Text.PositionOf(text, "#****End: Generated Statements****") > 0 then Text.PositionOf(text, "#****End: Generated Statements****", Occurrence.Last) else Text.Length(text),
+		                                                                                                SubText = Text.Middle(text, StartPos, EndPos - StartPos + 1)
+		                                                                                            in
+		                                                                                                fn_prepareCodeContent(SubText) 
+		                                                                }
+		    )
+		in
+		    PreparedContent
+		```
+	lineageTag: 32ef5e25-1dfd-4a2a-a7ed-1d5acc8bcc4f
+	queryGroup: Data\UserData
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+
+expression SettingsConfigDefault = ```
+		// Copyright © Alex Zaitsev
+		
+		let
+		    Result =
+						[
+							  AliasList = {}
+							, InterfaceMaxTreeDepth = 11
+							, MaxDimensionHierarchyDepth = 11
+							, TransactionLogPeriodInDays = -1
+							, ConvertGMTLogTimeStampsToLocalTimeZone = true                            
+							, HttpRequestPool = 120
+							, HttpRequestLatencySec = 60
+							, HttpRequestRecurringLatencySec = 1200
+							, HttpRequestMaxAttempts = 3
+							, HttpRequestTimeoutSec = 300
+							, MaxTreePathsCount = 500000
+						]
+		in
+		    Result
+		```
+	lineageTag: f398eead-5a15-4b08-b1b9-b216dc9c50b6
+	queryGroup: Settings\Configuration
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Record
+
+/// Mandatory if the server security mode is set to CAM authentication
+expression '14 NAMESPACE' = null meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=false]
+	lineageTag: 6ec7006f-d327-4381-b100-da2ff4a37f3c
+	queryGroup: Settings\Params
+
+	annotation PBI_ResultType = Null
+
+expression Table_TransformAllColumns = ```
+		let func = (Table as table, Function, TypeForColumns as type, optional ColumnNames as list) =>
+		let
+		    columnNames = if (ColumnNames = null) then Table.ColumnNames(Table) else ColumnNames,
+		    Transformation = Table.TransformColumns( Table, List.Transform(columnNames, each {_, Function, TypeForColumns} ) )
+		in
+		    Transformation ,
+		
+		    documentation = [
+		    Documentation.Name =  " Table_TransformAllColumns ",
+		    Documentation.Description = " ",
+		    Documentation.LongDescription = " Transforms all columns of a <code>table</code> with one <code>function</code> and one <code>type</code>. Optionial <code>ColumnNames</code> to limit to a specific list. ",
+		    Documentation.Category = " Table ",
+		    Documentation.Source = " ",
+		    Documentation.Version = " 1.0 ",
+		    Documentation.Author = " Copyright © Alex Zaitsev ",
+		    Documentation.Examples = {[Description =  " TBD ",
+		    Code = " Table_TransformAllColumns( #table( {""TextColumn1"", ""TextColumn2""}, List.Zip( { {""123<code>456</code>"" ,""789<code>101</code>""}, {""ABC<code>DEF</code>"" ,""GHI<code>JKL</code>""} } ) ), fnRemoveHtmlTags, type text) ",
+		    Result = " #table( {""TextColumn1"", ""TextColumn2""}, List.Zip( { {""123456"" ,""789101""}, {""ABCDEF"" ,""GHIJKL""} } ) ) "]}
+		    ]
+		 in  
+		    Value.ReplaceType(func, Value.ReplaceMetadata(Value.Type(func), documentation))
+		```
+	lineageTag: 8e276727-1012-40e2-b0a9-f56d3e98780a
+	queryGroup: Functions\Lib\BasicEx
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Function
+
+expression 'fn_FlattenHierarchy (unused)' = ```
+		let 
+		  fFlattenHierarchy = (
+		    hierarchyTable as table
+		    ,parentKeyColumnIdentifier as text
+		    ,parentNameColumnIdentifier as text
+		    ,childKeyColumnIdentifier as text
+		    ,childNameColumnIdentifier as text
+		  ) as table =>
+		  let
+		    #"Get Root Parents" = Table.Distinct(
+		      Table.SelectColumns(
+		        Table.NestedJoin(hierarchyTable
+		          ,parentKeyColumnIdentifier
+		          ,hierarchyTable
+		          ,childKeyColumnIdentifier
+		          ,"ROOT.PARENTS"
+		          ,JoinKind.LeftAnti
+		        )
+		        ,{
+		          parentKeyColumnIdentifier
+		          ,parentNameColumnIdentifier
+		        }
+		      )
+		    ),
+		    #"Generate Hierarchy" = fGetNextHierarchyLevel(
+		      #"Get Root Parents"
+		      ,parentKeyColumnIdentifier
+		      ,1
+		    ),
+		    fGetNextHierarchyLevel = (
+		      parentsTable as table
+		      ,nextParentKeyColumnIdentifier as text
+		      ,hierarchyLevel as number
+		    ) =>
+		      let 
+		        vNextParentKey = childKeyColumnIdentifier & Text.From(hierarchyLevel),
+		        vNextParentName = childNameColumnIdentifier & Text.From(hierarchyLevel),
+		        #"Left Join - hierarchyTable (Get Children)" = Table.NestedJoin(parentsTable
+		          ,nextParentKeyColumnIdentifier
+		          ,hierarchyTable
+		          ,parentKeyColumnIdentifier
+		          ,"NODE.CHILDREN"
+		          ,JoinKind.LeftOuter
+		        ),
+		        #"Expand Column - NODE.CHILDREN" = Table.ExpandTableColumn(#"Left Join - hierarchyTable (Get Children)"
+		          ,"NODE.CHILDREN"
+		          ,{
+		              childKeyColumnIdentifier
+		              ,childNameColumnIdentifier
+		          },{
+		              vNextParentKey
+		              ,vNextParentName
+		          }
+		        ),
+		        #"Filter Rows - Parents with Children" = Table.SelectRows(#"Expand Column - NODE.CHILDREN"
+		          ,each Record.Field(_,vNextParentKey) <> null 
+		              and Record.Field(_,vNextParentKey) <> Record.Field(_,nextParentKeyColumnIdentifier)
+		        ),
+		        #"Generate Next Hierarchy Level" = if Table.IsEmpty(#"Filter Rows - Parents with Children")
+		          then parentsTable 
+		          else Table.Combine(
+		            {
+		              parentsTable
+		              ,@fGetNextHierarchyLevel(
+		                #"Filter Rows - Parents with Children"
+		                ,vNextParentKey
+		                ,hierarchyLevel + 1
+		              )
+		            }
+		        )
+		      in 
+		        #"Generate Next Hierarchy Level",
+		    #"Add Column - HierarchyPath" = Table.AddColumn(#"Generate Hierarchy",
+		      "HierarchyPath"
+		      ,each Text.Combine(
+		        List.Transform(
+		          Record.FieldValues(
+		            Record.SelectFields(_,
+		              List.Select(Table.ColumnNames(#"Generate Hierarchy")
+		                ,each Text.StartsWith(_,childKeyColumnIdentifier) 
+		                  or Text.StartsWith(_,parentKeyColumnIdentifier)
+		              )
+		            )
+		          )
+		          ,each Text.From(_)
+		        )
+		        ,"|"
+		      )
+		      ,type text
+		    ),
+		    #"Add Column - HierarchyNodeID" = Table.AddColumn(#"Add Column - HierarchyPath",
+		      "HierarchyNodeID"
+		      ,each List.Last(Text.Split([HierarchyPath],"|"))
+		      ,type text
+		    ),
+		    #"Add Column - HierarchyLevel" = Table.AddColumn(#"Add Column - HierarchyNodeID",
+		      "HierarchyLevel"
+		      ,each List.Count(Text.Split([HierarchyPath],"|"))
+		      ,Int64.Type
+		    ),
+		    #"Add Column - IsLeafLevel" = Table.AddColumn(#"Add Column - HierarchyLevel",
+		      "IsLeafLevel"
+		      ,each List.Contains(
+		          List.Transform(
+		            Table.Column(
+		              Table.NestedJoin(hierarchyTable
+		              ,childKeyColumnIdentifier
+		              ,hierarchyTable
+		              ,parentKeyColumnIdentifier
+		              ,"LEAFLEVEL.CHILDREN"
+		              ,JoinKind.LeftAnti
+		              )
+		              ,childKeyColumnIdentifier
+		            )
+		            ,each Text.From(_)
+		          )
+		        ,List.Last(Text.Split([HierarchyPath],"|"))
+		      )
+		      ,type logical
+		    )
+		  in
+		    #"Add Column - IsLeafLevel",
+		  //Documentation
+		  fFlattenHierarchyType = type function (
+		    hierarchyTable as (type table meta [
+		      Documentation.FieldCaption = "Hierarchy"
+		      ,Documentation.LongDescription = "A table containing a parent-child hierarchy"
+		      ]
+		    )
+		    ,parentKeyColumnIdentifier as (type text meta [
+		      Documentation.FieldCaption = "Parent Key Column Identifier"
+		      ,Documentation.LongDescription = "The name of the column used to identify the key of the parent node in the hierarchy"
+		      ,Documentation.SampleValues = { "ParentID" }
+		      ]
+		    )
+		    ,parentNameColumnIdentifier as (type text meta [
+		      Documentation.FieldCaption = "Parent Name Column Identifier"
+		      ,Documentation.LongDescription = "The name of the column used to identify the name of the parent node in the hierarchy"
+		      ,Documentation.SampleValues = { "ParentName" }
+		      ]
+		    )
+		    ,childKeyColumnIdentifier as (type text meta [
+		      Documentation.FieldCaption = "Child Key Column Identifier"
+		      ,Documentation.LongDescription = "The name of the column used to identify the key of the child node in the hierarchy"
+		      ,Documentation.SampleValues = { "ChildID" }
+		      ]
+		    )
+		    ,childNameColumnIdentifier as (type text meta [
+		      Documentation.FieldCaption = "Child Name Column Identifier"
+		      ,Documentation.LongDescription = "The name of the column used to identify the name of the child node in the hierarchy"
+		      ,Documentation.SampleValues = { "ChildName" }
+		      ]
+		    )
+		  ) as list meta [
+		    Documentation.Name = "fFlattenHierarchy"
+		    ,Documentation.LongDescription = "Returns a flattened hierarchy table from a parent-child hierarchy table input."
+		      & "The number of columns returned is based on the depth of the hierarchy. Each child node will be prefixed"
+		      & "with the value specified for the childNameColumnIdentifier parameter"
+		    ,Documentation.Examples = {
+		      [
+		      Description = "Returns a flattened hierarchy table from a parent-child hierarchy table"
+		      ,Code = "fFlattenHierarchy(barksdaleOrganisation, ""ParentNodeID"", ""ParentNodeName"", ""ChildNodeID"", ""ChildNodeName"")"
+		      ,Result = "{100,2,3,51,62,""Stringer"",""Shamrock"",""Slim Charles"",""Bodie"",""Pudding"",5,""100|2|3|51|62"",TRUE,62}"
+		        & ",{100,2,3,51,""Stringer"",""Shamrock"",""Slim Charles"",""Bodie"",4,""100|2|3|51"",FALSE,51}"
+		      ]
+		    }
+		  ]
+		in
+		  Value.ReplaceType(fFlattenHierarchy, fFlattenHierarchyType)
+		```
+	lineageTag: eed3b0fe-d6ea-423e-8015-8d58df77e3a2
+	queryGroup: Functions\Utils
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Function
+
+expression fn_transformTimeIntervalsToDateTime = ```
+		// Copyright © Alex Zaitsev
+		
+		(SourceTable as table, TimeIntervalsColumnName as text) as table =>
+		let
+		    UtcNow = DateTimeZone.FixedUtcNow(),
+		    NowYear = Date.Year(UtcNow),
+		    NowMonth = Date.Month(UtcNow),
+		    NowDay = Date.Day(UtcNow),
+		    NowHour = Time.Hour(UtcNow),
+		    NowMinute = Time.Minute(UtcNow),
+		
+		    LocalNow = DateTimeZone.FixedLocalNow(), 
+		    ZoneHours = DateTimeZone.ZoneHours(LocalNow),
+		    ZoneMinutes = DateTimeZone.ZoneMinutes(LocalNow),
+		
+		    AddDateTime = Table.TransformColumns(SourceTable, 
+		                                        { "DateTime", 
+		                                            each
+		                                                let
+		                                                    StrInterval = Text.From( _ ),
+		                                                    DateTime = 
+		                                                            if (StrInterval = "LATEST") // DateTime.FixedLocalNow() not strictly equal to Cognos "LATEST" time because of Http Request execution period
+		                                                            then  
+		                                                                #datetime(
+		                                                                            NowYear,
+		                                                                            NowMonth,
+		                                                                            NowDay,
+		                                                                            NowHour,
+		                                                                            0,
+		                                                                            0
+		                                                                )
+		                                                            else if (Text.Contains(StrInterval, "M", Comparer.Ordinal) and StrInterval <> "LATEST")
+		                                                            then
+		                                                                #datetime(
+		                                                                            NowYear,
+		                                                                            NowMonth,
+		                                                                            NowDay,
+		                                                                            NowHour,
+		                                                                            try Number.FromText(Text.AfterDelimiter(StrInterval, "M")) otherwise 0,
+		                                                                            0
+		                                                                ) 
+		                                                                - #duration(
+		                                                                            0, 
+		                                                                            (try Number.FromText(Text.BeforeDelimiter(StrInterval, "M")) otherwise 0), 
+		                                                                            0, 
+		                                                                            0
+		                                                                )                                                                                                                            
+		                                                            else if (Text.Contains(StrInterval, "H", Comparer.Ordinal) and StrInterval <> "LATEST")
+		                                                            then   
+		                                                                #datetime(
+		                                                                            NowYear,
+		                                                                            NowMonth,
+		                                                                            NowDay,
+		                                                                            try Number.FromText(Text.AfterDelimiter(StrInterval, "H")) otherwise 0,
+		                                                                            0,
+		                                                                            0
+		                                                                ) 
+		                                                                - #duration(
+		                                                                            (try Number.FromText(Text.BeforeDelimiter(StrInterval, "H")) otherwise 0),
+		                                                                            0,
+		                                                                            0,
+		                                                                            0
+		                                                                )         
+		                                                            else null,
+		                                                    LocalDateTimeZone = if (SettingsConfig[ConvertGMTLogTimeStampsToLocalTimeZone])
+		                                                                        then DateTimeZone.SwitchZone(DateTime.AddZone(DateTime, 0, 0), ZoneHours, ZoneMinutes)
+		                                                                        else DateTime.AddZone(DateTime, ZoneHours, ZoneMinutes)                                                                        
+		                                                in
+		                                                    LocalDateTimeZone
+		                                    }                          
+		),
+		    RemoveNonOverriddenRows = Table.SelectRows(AddDateTime, each [DateTime] <= UtcNow) // Cognos may not erase the values opposite the 0H* elements that still store the previous day's data
+		in
+		    RemoveNonOverriddenRows
+		```
+	lineageTag: d1da622d-fb57-4b87-8608-5dabec421842
+	queryGroup: Functions\StatCubesHandling
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Function
+
+expression fn_convertUTCtoLocalTimeZone = ```
+		// Copyright © Alex Zaitsev
+		
+		(UTC as datetimezone) as datetimezone =>
+		let
+		    ZoneHours = DateTimeZone.ZoneHours(DateTimeZone.FixedLocalNow()),
+		    ZoneMinutes = DateTimeZone.ZoneMinutes(DateTimeZone.FixedLocalNow()),
+		    LocalDateTimeZone = DateTimeZone.SwitchZone(UTC, ZoneHours, ZoneMinutes) 
+		in
+		    LocalDateTimeZone
+		```
+	lineageTag: 95b346c2-2f6e-4a40-9a8c-a8a352d8ee3b
+	queryGroup: Functions\StatCubesHandling
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Function
+
+expression fn_aggregateMTimeIntervalsToCurrentHour = ```
+		// Copyright © Alex Zaitsev
+		
+		(SourceTable as table, GroupedColumns as list, AggregatedColumns as list, TimeIntervalsColumnName as text) as table =>
+		let
+		    SelectMRecords = Table.SelectRows(SourceTable, each 
+		                                                        Text.From(Record.Field( _ ,  TimeIntervalsColumnName)) = "LATEST"                  
+		                                                    or Text.Contains(Record.Field( _ ,  TimeIntervalsColumnName), "M", Comparer.Ordinal)
+		    ),
+		    ReplceTimeIntervalsColumnValues = Table.ReplaceValue(
+		                                                        SelectMRecords 
+		                                                        , each Record.Field( _ ,  TimeIntervalsColumnName )
+		                                                        , each "LATEST"
+		                                                        , Replacer.ReplaceValue
+		                                                        , { TimeIntervalsColumnName }                                                       
+		    ),            
+		    AggregatedTable = Table.Group(ReplceTimeIntervalsColumnValues, GroupedColumns, AggregatedColumns),
+		    SelectHRecords = Table.SelectRows(SourceTable, each 
+		                                                        Text.From(Record.Field( _ ,  TimeIntervalsColumnName)) <> "LATEST"                  
+		                                                    and Text.Contains(Record.Field( _ ,  TimeIntervalsColumnName), "H", Comparer.Ordinal)
+		    ),
+		    ResultTable = Table.Combine({ AggregatedTable, SelectHRecords })
+		in
+		    ResultTable
+		```
+	lineageTag: 3bb36c7c-2415-491f-a98f-3974b2511381
+	queryGroup: Functions\StatCubesHandling
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Function
+
+expression Source_TransactionLog = ```
+		// Copyright © Alex Zaitsev
+		
+		let
+		    Source = 
+		        if (try ConnectionConfig[ConnectionType] otherwise "REST") = "REST" 
+		        then
+		            let
+		                Value = try HttpRequests[TransactionLog][value] otherwise {},
+		                ConvertToTable = Table.FromList(Value, Splitter.SplitByNothing(), {"RecordSet"}, null, ExtraValues.Ignore),
+		                ExpandTransactionLog = Table.ExpandRecordColumn(ConvertToTable, "RecordSet", {"TimeStamp", "User", "Cube", "Tuple", "OldValue", "NewValue"}),
+		                NameSelection = Table.SelectRows(ExpandTransactionLog, each 
+		                                                            let 
+		                                                                Cube = [Cube], 
+		                                                                NameFilter = List.MatchesAny( Cubes[Cube], each _ = Text.From ( Cube ))
+		                                                            in 
+		                                                                NameFilter
+		                                    ),
+		                RemoveNullRows = Table.SelectRows(NameSelection, each [Cube] <> null),
+		                AddIndexColumn = Table.AddIndexColumn(RemoveNullRows, "RecordNo", 0)
+		            in
+		                 AddIndexColumn
+		        else if (try ConnectionConfig[ConnectionType] otherwise "REST") = "DataFiles" 
+		        then
+		            let
+		                SourceTable = 
+		                    if DataFiles_TransactionLog = null 
+		                    then SysNullTables[Default] 
+		                    else 
+		                        let 
+		                            Source = DataFiles_TransactionLog,
+		                            AddIndexColumn = Table.AddIndexColumn(Source, "RecordNo", 0)
+		                        in
+		                           AddIndexColumn 
+		            in
+		                SourceTable
+		        else
+		            SysNullTables[Default],
+		    TransformColumnTypes = Table.TransformColumnTypes(Source, {{"RecordNo", type number}, {"TimeStamp", type datetime}, {"User", type text}, {"Cube", type text}, {"OldValue", type text}, {"NewValue", type text}})
+		in
+		    TransformColumnTypes
+		```
+	lineageTag: 2651dfdf-1ee7-4a65-908d-8aa6f117ffd9
+	queryGroup: Data\UserData
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+
+expression fn_isSuccessfulHttpRequest = ```
+		// Copyright © Alex Zaitsev
+		
+		(RequestTable as table) as logical => 
+		    let
+		        LastResponseStatus = Table.SelectRows(RequestTable, each [AttemptNo] = List.Max(RequestTable[AttemptNo]))[HttpResponseStatus]{0},
+		        IsSuccessful = List.MatchesAny({200, 201, 202}, each _ = LastResponseStatus)
+		    in 
+		        IsSuccessful
+		```
+	lineageTag: 4763f2e9-45a4-4e7c-bded-9b50ff826ff1
+	queryGroup: Functions\DataExtraction
+
+	annotation PBI_ResultType = Function
+
+	annotation PBI_NavigationStepName = Navigation
+
+expression SettingsConfig = ```
+		// Copyright © Alex Zaitsev
+		
+		let
+		    Source = 
+		            SettingsConfigDefault 
+		            & (if #"21 MAX TREE PATHS COUNT" > 0 then [MaxTreePathsCount = #"21 MAX TREE PATHS COUNT"] else [])
+		            & (
+		                if #"22 ALIASES" <> "" 
+		                    then         
+		                        let
+		                            SplitTextByDelimiter = Splitter.SplitTextByAnyDelimiter({";", ","}, QuoteStyle.None)(#"22 ALIASES"), 
+		                            TrimAliases = List.Transform( SplitTextByDelimiter, each Text.Trim ( _ ) )
+		                        in
+		                            [AliasList = TrimAliases]
+		                    else
+		                        []
+		            )
+		            &  (if #"23 TRANSACTION LOG PERIOD" >= 0 then [TransactionLogPeriodInDays = #"23 TRANSACTION LOG PERIOD"] else [])
+		in
+		    Source
+		```
+	lineageTag: 58d57b9f-b1e7-4fe9-9532-12c04e52c8d9
+	queryGroup: Settings\Configuration
+
+	annotation PBI_ResultType = Record
+
+	annotation PBI_NavigationStepName = Navigation
+
+expression ConnectionConfig = ```
+		// Copyright © Alex Zaitsev
+		
+		let
+		    Connection = 
+		                [
+		                      ConnectionType = if #"01 CONNECTION TYPE" = null then "Service" else #"01 CONNECTION TYPE"
+		                    , #"Host:Port" = if #"11 HTTP(S)://HOST:PORT" = null then "REST" else #"11 HTTP(S)://HOST:PORT"
+		                ],
+		    Auth = 
+		                [
+		                      Login = if #"12 LOGIN" = null then "" else #"12 LOGIN"
+		                    , Password = if #"13 PASSWORD" = null then "" else #"13 PASSWORD"
+		                    , Namespace = if #"14 NAMESPACE"  = null then "" else #"14 NAMESPACE"
+		                ]
+		in
+		    Connection & Auth
+		```
+	lineageTag: eeafee85-d327-40a2-8034-fa3a46e8d7a2
+	queryGroup: Settings\Configuration
+
+	annotation PBI_ResultType = Record
+
+	annotation PBI_NavigationStepName = Navigation
+
+expression DataFiles_Dimensions = ```
+		// Copyright © Alex Zaitsev
+		
+		let
+		    Result = 
+		        if ConnectionConfig[ConnectionType] = "DataFiles" then
+		            let
+		                // Avoiding a dynamic data source when updating on the Service
+		                Source = ( try Table.Buffer(Folder.Files(#"31 DATA FILES PATH")) otherwise Table.FromRecords({ [Name = null, Extension = null] }) )[[Name], [Extension]],
+		                ExtSelection = Table.SelectRows(Source, each FileExtentions{[Name = "Dimension"]}[Extension] = Text.Lower([Extension])),
+		                NameSelection = Table.SelectRows(ExtSelection, each 
+		                                                        let 
+		                                                            Name = [Name], 
+		                                                            NameFilter = List.MatchesAny( KeyWords[SysMetaDataRef], each not Text.StartsWith( Name, _ ))
+		                                                        in NameFilter
+		                                ),
+		                RemoveExtensionFromName = Table.ReplaceValue(  NameSelection
+		                                                                , each [Extension]
+		                                                                , each ""
+		                                                                , Replacer.ReplaceText
+		                                                                , {"Name"}  
+		                                                            ),                        
+		                RemovedExt = Table.RemoveColumns(RemoveExtensionFromName,{"Extension"}),
+		                RenameColumn = Table.RenameColumns(RemovedExt,{{"Name", "Dimension"}})
+		            in
+		                RenameColumn
+		        else null
+		in
+		    Result
+		```
+	lineageTag: ea764712-0866-4a33-a7f1-89b65cb627fc
+	queryGroup: Data\UserData\DataFilesLoad
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Null
+
+expression DataFiles_TransactionLog = ```
+		// Copyright © Alex Zaitsev
+		
+		let
+		    Result = 
+		        if ConnectionConfig[ConnectionType] = "DataFiles" then
+		            let
+		                Period = try SettingsConfig[TransactionLogPeriodInDays] otherwise SettingsConfigDefault[TransactionLogPeriodInDays],
+		
+		                Result = if (Period < 0)
+		                then
+		                    null
+		                else
+		                    let
+		                        EndDateTime = DateTime.ToText(DateTime.LocalNow(), "yyyyMMddhhmmss"),
+		                        StartDateTime = DateTime.ToText(Date.StartOfDay(DateTime.LocalNow() + #duration(-Period, 0, 0, 0)), "yyyyMMddhhmmss"),
+		                        // Avoiding a dynamic data source when updating on the Service
+		                        Source = ( try Table.Buffer(Folder.Files(#"32 LOG FILES PATH")) otherwise Table.FromRecords({ [Name = null, Extension = null, Content = null] }) )[[Name], [Extension], [Content]],
+		                        ExtSelection = Table.SelectRows(Source, each FileExtentions{[Name = "TransactionLog"]}[Extension] = Text.From([Extension])),
+		                        LogNameSelection = Table.SelectRows(ExtSelection, each Text.StartsWith( [Name], KeyWords[TransactionLogRef] )),
+		                        RemoveExtensionFromName = Table.ReplaceValue(  
+		                                                                        LogNameSelection
+		                                                                        , each [Extension]
+		                                                                        , each ""
+		                                                                        , Replacer.ReplaceText
+		                                                                        , {"Name"}  
+		                        ),
+		                        PeriodSelection = Table.SelectRows(RemoveExtensionFromName, each ( 
+		                                                                                            [Name] >= KeyWords[TransactionLogRef] & StartDateTime and [Name] <= KeyWords[TransactionLogRef] & EndDateTime 
+		                                                                                            or [Name] = KeyWords[TransactionLogRef]
+		                                                                                        )
+		                        ),
+		                        CombineFiles = Table.AddColumn(
+		                                                        PeriodSelection
+		                                                        , "CombinedFiles"
+		                                                        , each try Table.Buffer(Csv.Document(
+		                                                            [Content]
+		                                                            , { "SetId", "TimeStamp", "ReplicatiomTime", "User", "ValueType", "OldValue", "NewValue", "Cube", "Tuple" }
+		                                                            , ","
+		                                                            , ExtraValues.List
+		                                                            , 65001
+		                                                        )) otherwise null
+		                        ),
+		                        ExpandCombineFiles = Table.ExpandTableColumn(Table.FromList(CombineFiles[CombinedFiles], Splitter.SplitByNothing(), {"CombinedFiles"}, null, ExtraValues.Ignore), "CombinedFiles", 
+		                                                                                                { "SetId", "TimeStamp", "User", "OldValue", "NewValue", "Cube", "Tuple" }
+		                        ),
+		                        RemoveIrrelevant = Table.SelectRows(ExpandCombineFiles, each not Text.StartsWith( [SetId], "#") and [Cube] <> "" and [Cube] <> null),
+		                        CubeNameSelection = Table.SelectRows(RemoveIrrelevant, each 
+		                                                let 
+		                                                    Name = [Cube], 
+		                                                    NameFilter = List.MatchesAny( KeyWords[SysMetaDataRef], each not Text.StartsWith( Name, _ ))
+		                                                in 
+		                                                    NameFilter
+		                        ),
+		                        RemoveEmptyValues = if Table.RowCount( CubeNameSelection ) > 0
+		                                            then Table.FromRecords(Table.TransformRows(CubeNameSelection
+		                                                                                        , (row) => Record.TransformFields(row, {"Tuple", each List.Select( _ , each _ <> "" ) })
+		                                                                                        )
+		                                            )
+		                                            else CubeNameSelection,
+		                        ConvertToDateTime = Table.TransformColumns(RemoveEmptyValues,
+		                                                                                        { "TimeStamp", ( value ) =>
+		                                                                                            let 
+		                                                                                                DateTimeZone = #datetimezone(
+		                                                                                                    (try Number.FromText(Text.Middle(value, 0, 4)) otherwise 0)
+		                                                                                                    , (try Number.FromText(Text.Middle(value, 4, 2)) otherwise 0)
+		                                                                                                    , (try Number.FromText(Text.Middle(value, 6, 2)) otherwise 0)
+		                                                                                                    , (try Number.FromText(Text.Middle(value, 8, 2)) otherwise 0)
+		                                                                                                    , (try Number.FromText(Text.Middle(value, 10, 2)) otherwise 0)
+		                                                                                                    , (try Number.FromText(Text.Middle(value, 12, 2)) otherwise 0)
+		                                                                                                    , 0
+		                                                                                                    , 0
+		                                                                                                    )
+		                                                                                            in
+		                                                                                                if (try Logical.FromText(SettingsConfig[ConvertGMTLogTimeStampsToLocalTimeZone]) otherwise SettingsConfigDefault[ConvertGMTLogTimeStampsToLocalTimeZone])
+		                                                                                                then fn_convertUTCtoLocalTimeZone(DateTimeZone)
+		                                                                                                else DateTimeZone
+		                                                                                        }
+		                        ),
+		                        Result = ConvertToDateTime[[TimeStamp], [User], [Cube], [Tuple], [OldValue], [NewValue]]
+		                    in
+		                        Result
+		                in Result
+		        else
+		            null
+		in
+		    Result
+		```
+	lineageTag: 028ae803-7c8b-4ec1-a041-5cee3e56bcc4
+	queryGroup: Data\UserData\DataFilesLoad
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Null
+
+/// Mandatory. Select "REST" or "DataFiles". 
+/// The "DataFile" connection does not require a running model but the functionality is limited
+expression '01 CONNECTION TYPE' = "REST" meta [IsParameterQuery=true, List={"REST", "DataFiles"}, DefaultValue="REST", Type="Text", IsParameterQueryRequired=true]
+	lineageTag: a6974d72-bf94-47c9-8622-9cd1a19e007e
+	queryGroup: Settings\Params
+
+	annotation PBI_ResultType = Text
+
+	annotation PBI_NavigationStepName = Navigation
+
+expression Text_ContainsAnyOf = ```
+		let func = (text as nullable text, ListOfSubstrings as list) as logical =>
+		        List.Count(Splitter.SplitTextByAnyDelimiter(ListOfSubstrings)(text)) > 1,
+		
+		    documentation = [
+		    Documentation.Name =  " Text_ContainsAnyOf ",
+		    Documentation.Description = " ",
+		    Documentation.LongDescription = " Detects whether text contains any value in ListOfSubstrings ",
+		    Documentation.Category = " Text ",
+		    Documentation.Source = " ",
+		    Documentation.Version = " 1.0 ",
+		    Documentation.Author = " Copyright © Alex Zaitsev ",
+		    Documentation.Examples = {[Description =  " TBD ",
+		    Code = " Text_ContainsAnyOf(""#TODO"", {""#"", ""//"", ""--""}) ",
+		    Result = " ""true"" "]}
+		    ]
+		 in  
+		    Value.ReplaceType(func, Value.ReplaceMetadata(Value.Type(func), documentation))
+		```
+	lineageTag: 7b079654-b2b1-4faa-89d1-427977067d47
+	queryGroup: Functions\Lib\BasicEx
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Function
+
+expression Text_BetweenOuterDelimiters = ```
+		let func = (text as text, StartInnerDelimiter as text, EndInnerDelimeter as text) as any =>
+		   let
+		      SplitByStartInnerDelimiter = Text.Split(text, StartInnerDelimiter),
+		      InnerDelimitersCount = List.Count(List.FirstN(SplitByStartInnerDelimiter, each not Text.Contains( _ , EndInnerDelimeter))),
+		      OuterSubstring = Text.BeforeDelimiter(text, EndInnerDelimeter, InnerDelimitersCount) 
+		   in
+		      OuterSubstring,
+		
+		   documentation = [
+		   Documentation.Name =  " Text_BetweenOuterDelimiters ",
+		   Documentation.Description = " ",
+		   Documentation.LongDescription = " Returns the portion of text outside the nested delimiters ",
+		   Documentation.Category = " Text ",
+		   Documentation.Source = " ",
+		   Documentation.Version = " 1.0 ",
+		   Documentation.Author = " Copyright © Alex Zaitsev ",
+		   Documentation.Examples = {[Description =  " TBD ",
+		   Code = " Text_BetweenOuterDelimiters(""CellGetS('str', pSourceCube, sv1, sv2, sv3), pTargetCube, tv1, tv2, tv3);"", ""("", "")"" )",
+		   Result = " CellGetS('str', pSourceCube, sv1, sv2, sv3), pTargetCube, tv1, tv2, tv3 "]}
+		   ]
+		 in  
+		   Value.ReplaceType(func, Value.ReplaceMetadata(Value.Type(func), documentation))
+		```
+	lineageTag: bc578fcf-625c-4748-b26e-d0461287f815
+	queryGroup: Functions\Lib\BasicEx
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Function
+
+expression Tree:Processes:Source>Target = ```
+		// Copyright © Alex Zaitsev
+		
+		let
+			ExtractCodeOnly = Source_Processes,
+			RelatedObjects = Table.AddColumn(
+		                    ExtractCodeOnly
+		                    , "RelatedObjects"
+		                    , each fn_extractFunctionEntries( Text.From([TextContent]), KeyWords[ProcessProcessRef], {0}, fn_getProcessVariablesDict(Text.From([TextContent]), "'") )
+		        ),
+			// remove a circular reference to the same object and non-evaluated expressions
+			 RemoveCircularRefs = if Table.RowCount( RelatedObjects ) > 0
+								then Table.FromRecords(Table.TransformRows(RelatedObjects
+																			, (r) => Record.TransformFields(r, {"RelatedObjects", each List.Select( _ , each _ <> r[Name] and not Text.Contains( _ , "|") ) })
+																			)
+									)
+								else RelatedObjects,                                   					
+		
+			MaxTreeDepth = fn_calcMaxTreeDepth(RemoveCircularRefs[RelatedObjects]),
+			ResultTable = try fn_createHierarchyPath(RemoveCircularRefs[[Name], [RelatedObjects]], "Name", "RelatedObjects", SysName[ProcTreeNodeName], MaxTreeDepth) otherwise SysNullTables[#"Tree:Processes:Target<Source"]
+		in
+			ResultTable
+		```
+	lineageTag: 7e36231c-3fa6-43ae-839a-ca9ad1a1a997
+	queryGroup: Data\UserData
+
+	annotation PBI_ResultType = Table
+
+	annotation PBI_NavigationStepName = Navigation
+
+expression fn_calcMaxTreeDepth = ```
+		// Copyright © Alex Zaitsev
+		
+		( RelatedObjects as list ) as number =>
+		let   
+		    MaxTreePathsCount = SettingsConfig[MaxTreePathsCount],
+		    InterfaceMaxTreeDepth = SettingsConfig[InterfaceMaxTreeDepth],
+		    AvgRelatedObjects1 = 
+		        Value_SafeDivision( 
+		            try List.Count(List.Combine(RelatedObjects)) 
+		            otherwise try  List.Count( Table.ExpandTableColumn(Table.FromList(RelatedObjects, Splitter.SplitByNothing(), {"RelatedObjects"}, null, ExtraValues.Error), "RelatedObjects", { "RelatedObjects" } )[RelatedObjects] )
+		            otherwise 1
+		        , List.Count(RelatedObjects) 
+		        ), 
+		    AvgRelatedObjects2 = if AvgRelatedObjects1 < 1 then 1 else AvgRelatedObjects1 ,
+		    CalcMaxTreeDepth = Number.RoundDown( Number.Log( Value_SafeDivision(MaxTreePathsCount, List.Count(RelatedObjects)),  AvgRelatedObjects2 )),
+		    MaxTreeDepth = if Number.IsNaN(CalcMaxTreeDepth) or CalcMaxTreeDepth <= 1 or CalcMaxTreeDepth > InterfaceMaxTreeDepth then InterfaceMaxTreeDepth else CalcMaxTreeDepth
+		in
+		    MaxTreeDepth
+		```
+	lineageTag: dd9d78af-84ef-465f-8209-3d6a62efcd8a
+	queryGroup: Functions\RulesProcessesHandling
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Function
+
+expression Value_SafeDivision = ```
+		let func = (value_1 as any, value_2 as any) =>
+		    let
+		        Quotient = try value_1 / value_2 otherwise 0
+		    in
+		        if List.Contains({ Number.PositiveInfinity,  Number.NegativeInfinity, null }, Quotient) or Number.IsNaN(Quotient) then 0 else Quotient
+		    ,
+		
+		    documentation = [
+		    Documentation.Name =  " Value_SafeDivision ",
+		    Documentation.Description = " ",
+		    Documentation.LongDescription = " Safe arithmetic division operation ",
+		    Documentation.Category = " Value ",
+		    Documentation.Source = " ",
+		    Documentation.Version = " 1.0 ",
+		    Documentation.Author = " Copyright © Alex Zaitsev ",
+		    Documentation.Examples = {[Description =  " TBD ",
+		    Code = " Value_SafeDivision( 10, 0 ),  Value_SafeDivision( 10, ""zero"" )",
+		    Result = " 0 "]}
+		    ]
+		 in  
+		    Value.ReplaceType(func, Value.ReplaceMetadata(Value.Type(func), documentation))
+		```
+	lineageTag: 5863547e-071f-4c3e-9ec7-46246c69d59d
+	queryGroup: Functions\Lib\BasicEx
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Function
+
+expression fn_reverseHierarchy = ```
+		// Copyright © Alex Zaitsev
+		
+		(Source as table, fields as list, optional HierarchyPath as text) as table =>
+		    Table.FromRecords(
+				Table.TransformRows(Source, (row) => 
+					let
+						RecordToReverse = Record.SelectFields(row, fields),
+						ReversedRow = List.Select(List.Reverse(Record.ToList(RecordToReverse)), each _ <> null),
+						FieldsCount = List.Count(ReversedRow),
+						ReversedRecord = Record.FromList(ReversedRow, List.FirstN(fields, FieldsCount)),
+						ReversedPath = if (HierarchyPath = null) then [] else [HierarchyPath = Text.Combine( ReversedRow , "|")],
+						// CompleteRecord = Record.SelectFields(row, List.RemoveItems(Table.ColumnNames(Source), fields & { HierarchyPath })) & ReversedRecord & ReversedPath
+						CompleteRecord = Record.SelectFields(row, List.RemoveItems(Record.FieldNames(row), fields & { HierarchyPath })) & ReversedRecord & ReversedPath
+					in
+						CompleteRecord
+				)
+			, Table.ColumnNames(Source), MissingField.UseNull)
+		```
+	lineageTag: 91b4874f-4067-44d2-99d5-38abba244d60
+	queryGroup: Functions\Utils
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Function
+
+expression fn_nestedExpressionsCount = ```
+		// Copyright © Alex Zaitsev
+		
+		(TextToParse as text, Expression as text, NestedExpressions as list) as number =>
+		let
+			fn_appendObjectToList_EntryNo = (EntriesList as list, KeyWord as text, EntryNo as number) as list =>  
+			let
+				NextEntry = Text_BetweenOuterDelimiters(Text.AfterDelimiter(TextToParse, KeyWord & "(", EntryNo), "(", ")"),
+				AppendedList = if NextEntry = ""
+					then EntriesList
+					else 
+						let 
+							EntriesList = EntriesList & { NextEntry },
+							Recursion = @fn_appendObjectToList_EntryNo(EntriesList, KeyWord, EntryNo + 1)
+						in
+							Recursion
+			in
+				AppendedList,
+							
+			EntriesList = fn_appendObjectToList_EntryNo({}, Expression, 0 ),
+			EntriesWithNestedExpressions = List.Select(EntriesList, each Text_ContainsAnyOf( _ , NestedExpressions))
+		in
+			List.Count(EntriesWithNestedExpressions)
+		```
+	lineageTag: cd51457d-0c9d-45ec-9d3f-643e409639ee
+	queryGroup: Functions\RulesProcessesHandling
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Function
+
+/// Mandatory. The maximum number of calculated paths in the model lineage. The value depends on the Power BI Server performance
+expression '21 MAX TREE PATHS COUNT' = 10000000 meta [IsParameterQuery=true, Type="Number", IsParameterQueryRequired=true]
+	lineageTag: e855521e-cd44-462d-aaa6-240907f71ce4
+	queryGroup: Settings\Params
+
+	annotation PBI_ResultType = Number
+
+	annotation PBI_NavigationStepName = Navigation
+
+/// Optional. The absolute path to the model data files. Used with the CONNECTION TYPE = "DataFiles"
+/// Format: "Full_path_to_the_directory\"
+/// Default value: "X:\"
+expression '31 DATA FILES PATH' = "X:\model\DataFiles\" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=false]
+	lineageTag: e7f3af23-5e36-4889-986a-86140c53fbe9
+	queryGroup: Settings\Params
+
+	annotation PBI_ResultType = Text
+
+	annotation PBI_NavigationStepName = Navigation
+
+/// Optional. The absolute path to the model log files. Used with the CONNECTION TYPE = "DataFiles"
+/// Format: "Full_path_to_the_directory\"
+/// Default value: "X:\"
+expression '32 LOG FILES PATH' = "X:\model\LogFiles\" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=false]
+	lineageTag: b3995e1c-1fc1-4ed1-aad3-973a0328f3f4
+	queryGroup: Settings\Params
+
+	annotation PBI_ResultType = Text
+
+	annotation PBI_NavigationStepName = Navigation
+
+/// Optional. Only the listed aliases will be loaded. Restricting the list can significantly improve data import speed. Use commas or semicolons to separate items.
+expression '22 ALIASES' = null meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=false]
+	lineageTag: c8491541-15c9-443b-ab1c-e0f7e1487bf0
+	queryGroup: Settings\Params
+
+	annotation PBI_ResultType = Null
+
+	annotation PBI_NavigationStepName = Navigation
+
+expression Source_MessageLog = ```
+		// Copyright © Alex Zaitsev
+		
+		let
+		    Source = 
+		        if (try ConnectionConfig[ConnectionType] otherwise "REST") = "REST" 
+		        then
+		            let
+		                Value = HttpRequests[MessageLog][value],
+		                ConvertToTable = Table.FromList(Value, Splitter.SplitByNothing(), {"RecordSet"}, null, ExtraValues.Ignore),
+		                ExpandMessageLog = Table.ExpandRecordColumn(ConvertToTable, "RecordSet", {"TimeStamp", "Level", "Message"})
+		            in
+		                ExpandMessageLog
+		        else if (try ConnectionConfig[ConnectionType] otherwise "REST") = "DataFiles" 
+		        then
+		            let
+		                SourceTable = 
+		                    if DataFiles_MessageLog = null 
+		                    then SysNullTables[Default] 
+		                    else 
+		                        let 
+		                            Source = DataFiles_MessageLog
+		                        in
+		                           Source 
+		            in
+		                SourceTable
+		        else
+		            SysNullTables[Default],
+		        
+		    MessagesPattern = Record.ToList(SysMessageLog),
+		    Selection = Table.SelectRows(Source, each 
+		                                                let 
+		                                                    Msg = [Message], 
+		                                                    Filter = List.MatchesAny( MessagesPattern, each Text.Contains ( Msg, _ ))
+		                                                in 
+		                                                    Filter
+		                                        ),
+		    TransformColumnTypes = Table.TransformColumnTypes(Selection, {{"TimeStamp", type datetime}, {"Level", type text}, {"Message", type text}})
+		in
+		    TransformColumnTypes
+		```
+	lineageTag: f683b3c1-14ab-4b16-a102-d8cdf3d555b4
+	queryGroup: Data\UserData
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+
+expression SysMessageLog =
+		let
+		    Source = [
+						  ProcessFeedersMsg = "Done computing feeders for base cube"
+					 	, ElapsedTimeMsg = "TM1 Server is ready, elapsed time"
+					]
+		in
+		    Source
+	lineageTag: 2fe35bcc-a952-4388-a564-29de2b286cf6
+	queryGroup: SysData
+
+	annotation PBI_NavigationStepName = Navigation
+
+expression DataFiles_MessageLog = ```
+		// Copyright © Alex Zaitsev
+		
+		let
+		    Result = 
+		      if ConnectionConfig[ConnectionType] = "DataFiles" then
+		            let
+		                // Avoiding a dynamic data source when updating on the Service
+		                Source =  try Table.Buffer(Csv.Document(File.Contents(#"32 LOG FILES PATH" & "tm1server.log"), [Delimiter = "#(lf)", Columns = {"Row"}, Encoding = 65001, QuoteStyle = QuoteStyle.None])) otherwise Table.FromRecords({ [Row = null] }),
+		                SplitRows = Table.FromList(Source[Row], Splitter.SplitTextByDelimiter("   ", QuoteStyle.None), { "ThreadID", "[]", "Level", "TimeStamp", "Logger", "Message" }, null, ExtraValues.Ignore),
+		                SelectNotNull = Table.SelectRows(SplitRows, each [TimeStamp] <> null)
+		        in
+		            SelectNotNull[[TimeStamp], [Level], [Message]]
+		    else null
+		in
+		    Result
+		```
+	lineageTag: 6b2ed82e-2631-4bef-b143-9c7dbbd85b80
+	queryGroup: Data\UserData\DataFilesLoad
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Null
+
+expression fn_extractFunctionEntries = ```
+		// Copyright © Alex Zaitsev
+		
+		// Function returns a list of objects extracted from the text, defined by incoming keywords and a marker-function.
+		// Parameters: 
+		//		TextToParse: Prepared text ( returned by prepareCodeContent() )
+		//		KeyWords: one or several combined values from KeyWords or any other source;
+		//      ParamNos: parameter number in KeyWords functions
+		//		VariablesDict: if variables Dictionary is needed (see fn_getProcessVariablesDict())
+		//      EntriesListByKeyWords: list of target entries by all KeyWords
+		//      KeyWordNo: KeyWord iterator
+		//		EntriesList: accumulated list of target entries while parsing
+		//		EntryNo: entry iterator for a KeyWord
+		
+		// Limitations:
+		// Сompound Entry name via concatenation is not supported in this version
+		
+		(TextToParse as text, KeyWords as list, ParamNos as list, optional VariablesDict as list) as list =>
+		    let
+		        fn_appendObjectToList_KeyWordNo = (EntriesListByKeyWords as list, KeyWordNo as number) as list =>
+		            let
+		            // Append next entry for the current KeyWord
+		                fn_appendObjectToList_EntryNo = (EntriesList as list, KeyWord as text, EntryNo as number) as list =>  
+		                let
+		                    NextFunction = Text_BetweenOuterDelimiters(Text.AfterDelimiter(TextToParse, KeyWord & "(", EntryNo), "(", ")"),
+		                    AppendedList = if NextFunction = ""
+		                        then EntriesList
+		                        else 
+		                            let 
+		                                // Escaping any inner commas for subsequent splitting
+		                                TransformNestedOpeningParenthesis = Text.Replace(NextFunction, "(", """("),
+		                                TransformNestedClosingParenthesis = Text.Replace(TransformNestedOpeningParenthesis, ")", ")"""),
+		                                TransformSingleQuotes = Text.Replace(TransformNestedClosingParenthesis, "'", """'"),
+		
+		                                // Extracting parametres
+		                                ParameterList = Splitter.SplitTextByDelimiter(",", QuoteStyle.Csv)(TransformSingleQuotes),
+		                                ReplaceVariablesWithValue = 
+		                                    if VariablesDict = null or List.IsEmpty(VariablesDict) // Only for Processes 
+		                                    then ParameterList 
+		                                    else List.Transform(ParameterList, ( val ) => if Text.StartsWith ( val , "'") then val else try List.Last(List.Select(VariablesDict, each _{0} = val)){1} otherwise "''")
+		                                ,
+		                                RemovedQuotationsParameterList = List.Transform(ReplaceVariablesWithValue, each Text.Remove( _ , {"'"} )),
+		                                Object = try RemovedQuotationsParameterList{ParamNos{KeyWordNo}} otherwise "",
+		                                EntriesList = 
+		                                    if Object <> null and Text.Trim(Object) <> "" and not List.Contains(EntriesList, Object)
+		                                    then EntriesList & { Object }
+		                                    else EntriesList
+		                                ,
+		                                Recursion = @fn_appendObjectToList_EntryNo(EntriesList, KeyWords{KeyWordNo}, EntryNo + 1)
+		                            in 
+		                                Recursion               
+		                in 
+		                    AppendedList,
+		
+		                EntriesListByKeyWords = List.Combine({EntriesListByKeyWords, fn_appendObjectToList_EntryNo({}, KeyWords{KeyWordNo}, 0 )})
+		            in
+		                if KeyWordNo = List.Count(KeyWords) - 1
+		                    then EntriesListByKeyWords
+		                    else @fn_appendObjectToList_KeyWordNo(EntriesListByKeyWords, KeyWordNo + 1)
+		            ,
+		            
+		        Entires = fn_appendObjectToList_KeyWordNo({}, 0),
+		        DistinctList = List.Distinct(Entires)
+		    in 
+		        DistinctList
+		```
+	lineageTag: 334a0b76-23de-4ac6-a533-aaff43b4cf4c
+	queryGroup: Functions\RulesProcessesHandling
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Function
+
+expression fn_getProcessVariablesDict = ```
+		// Copyright © Alex Zaitsev
+		
+		// Function prepares Processes variables Dictionary
+		// Parameters: 
+		//      TextToParse: Prepared code ( returned by prepareCodeContent() );
+		//      VariableQuote = "'" for Processes
+		
+		(TextToParse as text, VariableQuote as text) as list =>  
+		let
+		// Select variables: keys cannot contain special symbols, values are not functions
+		    Rows = Text.Split(TextToParse, ";"),
+		    RawsKeyValue = List.Transform(Rows, each if Text.Contains( _ , "=" ) then Splitter.SplitTextByAnyDelimiter({ "@=", "=" })( _ ) else { null, _ } ),
+		    // 0 - Key, 1 - Value
+		    VariableDict = List.Select(RawsKeyValue, each _{0} <> null and not Text_ContainsAnyOf( _{0} , { "(", "[" } ) and not Text_ContainsAnyOf( _{1} , { "(", "[" } )),
+		    
+		    Counter = List.Count(VariableDict),
+		    // Private function replaces variable references with real values   
+		    fn_getRealVairableValue = (i as number, optional DictToSearchIn as list) as list =>
+		        let
+		            ReferredVariableKey = VariableDict{i}{1},
+		            VariableNewValue = if Text.Contains( ReferredVariableKey, VariableQuote ) then ReferredVariableKey else try List.Last(List.Select(DictToSearchIn, each _{0} = ReferredVariableKey)){1} otherwise VariableQuote & VariableQuote,
+		            TransformedVariableDict = if DictToSearchIn = null then {{ VariableDict{i}{0}, VariableNewValue }} else DictToSearchIn & {{ VariableDict{i}{0}, VariableNewValue }}
+		        in
+		            if i >= Counter - 1
+		                then TransformedVariableDict
+		                else @fn_getRealVairableValue(i + 1, TransformedVariableDict),
+		    
+		    ReplaceVariableReferenceWithValue = fn_getRealVairableValue(0)
+		in
+		    ReplaceVariableReferenceWithValue
+		```
+	lineageTag: 587e057a-492f-47d0-8fb5-85400f3ff4dc
+	queryGroup: Functions\RulesProcessesHandling\Private
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Function
+
+expression fn_createHierarchyPath = ```
+		// Copyright © Alex Zaitsev
+		
+		(SourceTable as table, KeyField as any, ChildrenObjectsField as text, TreeNodeName as text, HierarchyDepth as number, optional DefinitionMap as list) =>
+		   let
+		      fn_nextNode = (NodesTable as table, NodeNo as number) =>
+		         let
+		            ExpandLevel_N = Table_ExpandAnyColumn(
+		                                                      NodesTable
+		                                                      , TreeNodeName & Text.From(NodeNo)
+		                                                      , if DefinitionMap = null then null else DefinitionMap // to handle properly the entirely null nodes 
+		                                                      , if DefinitionMap = null then null else { TreeNodeName & Text.From(NodeNo), TreeNodeName & Text.From(NodeNo) & ": " & SysName[CubeTreeAreaDefinition] }
+		                                                      , if DefinitionMap = null then null else type table // to handle properly the entirely null nodes 
+		                                                ),
+		            RemoveCircularRefLevel_N = Table.ReplaceValue(
+		                                                      ExpandLevel_N
+		                                                      , each Text.EndsWith(Splitter & Record.Field( _ ,  "HierarchyPath"), Splitter & Record.Field( _ , TreeNodeName & Text.From(NodeNo)))
+		                                                      , each null
+		                                                      , (currentValue, isTrue, replacementValue) => if isTrue then replacementValue else currentValue  
+		                                                      , List.Select(Table.ColumnNames(ExpandLevel_N), each Text.StartsWith( _ , TreeNodeName & Text.From(NodeNo) ))
+		                                                   ),
+		            //Update hierarchy path with new meaningful values
+		            AppendHierarchyPath = Table.ReplaceValue(
+		                                                         RemoveCircularRefLevel_N 
+		                                                         , each Record.Field( _ , TreeNodeName & Text.From(NodeNo)) = null
+		                                                         , each Record.Field( _ , TreeNodeName & Text.From(NodeNo)) 
+		                                                         , (currentValue, isTrue, replacementValue) => if isTrue then currentValue else Text.Combine({ currentValue, Splitter, replacementValue })  
+		                                                         , {"HierarchyPath"}                                                       
+		                                                      ),
+		            
+		            NextNodeTable = 
+		               if (NodeNo = InterfaceMaxTreeDepth - 2) then LastNodeTable 
+		               else if (NodeNo = HierarchyDepth - 1) then LastNodeTable 
+		               else if (NodeNo < HierarchyDepth - 1) then SourceTable 
+		               else NullNodeTable,           
+		            HierarchyTable = if (NodeNo >= InterfaceMaxTreeDepth - 1)
+		                                 then
+		                                     AppendHierarchyPath       
+		                                 else 
+		                                    let
+		                                       AddNextNodeTable = Table.NestedJoin(
+		                                                  AppendHierarchyPath
+		                                                , TreeNodeName & Text.From(NodeNo)
+		                                                , NextNodeTable
+		                                                , KeyField
+		                                                , "TableColumn"
+		                                                , JoinKind.LeftOuter 
+		                                             ),
+		                                       ExpandedNextNodeTable = Table.ExpandTableColumn(AddNextNodeTable, "TableColumn", { ChildrenObjectsField }, { TreeNodeName & Text.From(NodeNo + 1) })
+		                                    in 
+		                                       @fn_nextNode(ExpandedNextNodeTable, NodeNo + 1) 
+		         in
+		            HierarchyTable,
+		
+		
+		      InterfaceMaxTreeDepth = SettingsConfig[InterfaceMaxTreeDepth],
+		      RootNodeTable = Table.AddColumn(Table.RenameColumns(SourceTable, {{ KeyField, TreeNodeName & Text.From(0) }, { ChildrenObjectsField, TreeNodeName & Text.From(1) }}), "HierarchyPath", each Record.Field( _ , TreeNodeName & Text.From(0))),
+		      LastNodeTable = Table.AddColumn( Table.SelectColumns(SourceTable, KeyField), ChildrenObjectsField, each if DefinitionMap = null then {"[ ... ]"} else Table.FromRows({{"[ ... ]", null}}, DefinitionMap) ),
+		      NullNodeTable = Table.AddColumn( Table.SelectColumns(SourceTable, KeyField), ChildrenObjectsField, each if DefinitionMap = null then null else Table.FromRows({{null, null}}, DefinitionMap) ),
+		      Splitter = "|",
+		      
+		      Return = fn_nextNode(RootNodeTable, 1)
+		   in 
+		      Return
+		```
+	lineageTag: 371b48d7-3c41-427f-ad4c-3832baa17964
+	queryGroup: Functions\RulesProcessesHandling
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Function
+
+expression List_ItemsByPositions = ```
+		let func = (List as list, Positions as list) as list =>
+		   let
+		      fn_getPos = (Output as list, i as number) => 
+		         let
+		            Output = Output & { List{ Positions{i} } }
+		         in
+		            if i < List.Count(Positions) - 1
+		               then @fn_getPos(Output, i + 1)
+		               else Output
+		      ,
+		      Positions = if List.IsEmpty(Positions) then List.Positions(List) else Positions,      
+		      Output = fn_getPos( {}, 0 )
+		   in
+		      Output,
+		
+		   documentation = [
+		   Documentation.Name =  " List_ItemsByPositions",
+		   Documentation.Description = " ",
+		   Documentation.LongDescription = " Returns the result pulling specific items from the List ",
+		   Documentation.Category = " List ",
+		   Documentation.Source = " ",
+		   Documentation.Version = " 1.0 ",
+		   Documentation.Author = " Copyright © Alex Zaitsev ",
+		   Documentation.Examples = {[Description =  " ",
+		   Code = " List_ItemsByPositions({10, 11 ,12, 13, 14}, {0, 4}) ",
+		   Result = " {10, 14} "]}
+		   ]
+		in  
+		   Value.ReplaceType(func, Value.ReplaceMetadata(Value.Type(func), documentation))
+		```
+	lineageTag: d8587da4-d8eb-49b6-bdbf-adff9383f504
+	queryGroup: Functions\Lib\BasicEx
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Function
+
+expression Table_ExpandAnyColumn = ```
+		let func = (Table as table, FieldToExpand as text, optional ColumnNames as list, optional NewColumnNames as list, optional PersistentType as type) as table =>
+		let
+		    Value = if PersistentType = null 
+		            then try Record.Field(Table.SelectRows(Table, ( row ) =>  Value.Is(Record.Field(row, FieldToExpand), type list) or Value.Is(Record.Field(row, FieldToExpand), type table) ){0}, FieldToExpand) otherwise null
+		            else null,
+		    ExpendedTable = if PersistentType = type list or Value.Is(Value, type list) then Table.ExpandListColumn(Table, FieldToExpand) else 
+		                    if PersistentType = type table or Value.Is(Value, type table) then Table.ExpandTableColumn(Table, FieldToExpand, if (ColumnNames = null) then Table.ColumnNames(Value) else ColumnNames, NewColumnNames) else
+		                    Table
+		in
+		    ExpendedTable ,
+		
+		    documentation = [
+		    Documentation.Name =  " Table_TransformAllColumns ",
+		    Documentation.Description = " ",
+		    Documentation.LongDescription = " Transforms all columns of a <code>table</code> with one <code>function</code> and one <code>type</code>. Optionial <code>ColumnNames</code> to limit to a specific list. ",
+		    Documentation.Category = " Table ",
+		    Documentation.Source = " ",
+		    Documentation.Version = " 1.1 ",
+		    Documentation.Author = " Copyright © Alex Zaitsev ",
+		    Documentation.Examples = {[Description =  " TBD ",
+		    Code = " Table_ExpandAnyColumn (SourceTable, ListOrTableType, null,  { new_1, new_2 }), ",
+		    Result = " Table with expanded ListOrTableType Field "]}
+		    ]
+		 in  
+		    Value.ReplaceType(func, Value.ReplaceMetadata(Value.Type(func), documentation))
+		```
+	lineageTag: 5b64d225-6748-4feb-9fe2-33e015012bfc
+	queryGroup: Functions\Lib\BasicEx
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Function
+
+expression fn_requestView = ```
+		let func = (Cube as text, View as text, optional RequstNo as nullable number) =>  
+		                fn_sendHttpRequest("Cubes('"& Cube & "')/Views('" & View & "')/tm1.Execute?$expand=Cells($select=Ordinal,Value;$expand=Members)", "", RequstNo),
+		    documentation = [
+		    Documentation.Name =  " fn_requestView",
+		    Documentation.Description = " ",
+		    Documentation.LongDescription = " Returns cube data for the specified View ",
+		    Documentation.Category = " HTTP Request ",
+		    Documentation.Source = " ",
+		    Documentation.Version = " 1.0 ",
+		    Documentation.Author = " Copyright © Alex Zaitsev ",
+		    Documentation.Examples = {[Description =  "",
+		    Code = " fn_requestCubeData(""Cube1"", ""View1"") ",
+		    Result = "Raw ""Cube1/View1"" data"]}
+		    ]
+		in
+		    Value.ReplaceType(func, Value.ReplaceMetadata(Value.Type(func), documentation))
+		```
+	lineageTag: 0dcdc303-bf85-4dd6-88e5-e67a300203d9
+	queryGroup: Functions\DataExtraction
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Function
+
+expression HttpRequests = ```
+		// Copyright © Alex Zaitsev
+		
+		let
+		    HttpRequests = if (try ConnectionConfig[ConnectionType] otherwise "REST") = "REST" then
+		        [
+		            Rules = fn_sendHttpRequest("ModelCubes()?$select=Name,Rules", null, 1)
+		            , Processes = fn_sendHttpRequest("Processes?$select=Name,PrologProcedure,MetadataProcedure,DataProcedure,EpilogProcedure", null, 2)
+		            , Configuration = fn_sendHttpRequest("Configuration", null, 3)
+		            , Server = fn_sendHttpRequest("Server", null, 4)
+		            , CubeDimensions = fn_sendHttpRequest("ModelCubes()?$select=Name&$expand=Dimensions($select=Name)", null, 5)
+		            , DimensionAttributes = fn_sendHttpRequest("Dimensions?$select=Name&$expand=Hierarchies($select=Name;$expand=ElementAttributes($select=Name,Type))", null, 6)
+		            , DimensionElements = 
+		                let
+		                    Aliases = SettingsConfig[AliasList],
+		                    AliasesPlaceHolders =   if List.IsEmpty(Aliases) 
+		                                            then "Attributes" 
+		                                            else 
+		                                                let
+		                                                    Filters = List.Transform(Aliases, each "Attributes/" & _ )
+		                                                in
+		                                                    "Attributes/Caption," & Text.Combine(Filters, ","),
+		                    Request = "Dimensions?$select=Name&$expand=Hierarchies($select=Name,Elements;$expand=Elements($select=Name,Type,Level,Index," & AliasesPlaceHolders & ","
+		                        & "Parents;$expand=Parents($select=Name,"
+		                        & "Parents;$expand=Parents($select=Name,"
+		                        & "Parents;$expand=Parents($select=Name," 
+		                        & "Parents;$expand=Parents($select=Name," 
+		                        & "Parents;$expand=Parents($select=Name," 
+		                        & "Parents;$expand=Parents($select=Name," 
+		                        & "Parents;$expand=Parents($select=Name," 
+		                        & "Parents;$expand=Parents($select=Name," 
+		                        & "Parents;$expand=Parents($select=Name," 
+		                        & "Parents;$expand=Parents($select=Name))))))))))"
+		                        &"))",
+		                    SendRequest = fn_sendHttpRequest( Request, null, 7 )
+		                in
+		                    SendRequest
+		            , Users = fn_sendHttpRequest("Users", null, 8)
+		            , ClientGroups = fn_requestMDX("}ClientGroups", [#"}Clients" = {}, #"}Groups" = {}], true, 9, 1)
+		            , CubeSecurity = fn_requestMDX("}CubeSecurity", [#"}Cubes" = {}, #"}Groups" = {}], true, 10, 1)
+		            , Groups = fn_requestMDX("}ElementAttributes_}Groups", [#"}Groups" = {}, #"}ElementAttributes_}Groups" = {"}TM1_DefaultDisplayValue"}], true, 11, 1)
+		            , StatsByCube = fn_requestMDX("}StatsByCube", [
+		                                #"}PerfCubes" = {}
+		                                , #"}StatsStatsByCube" = {"Total Memory Used", "Memory Used for Views", "Memory Used for Calculations", "Memory Used for Feeders", "Memory Used for Input Data", "Number of Stored Calculated Cells", "Number of Populated String Cells", "Number of Populated Numeric Cells", "Number of Fed Cells"}
+		                                , #"}TimeIntervals" = {}
+		                            ], true, 12, 1)
+		            , StatsByClient = fn_requestMDX("}StatsByClient", [
+		                                #"}PerfClients" = {}
+		                                , #"}StatsStatsByClient" = {"Message Count", "Request Count"}
+		                                , #"}TimeIntervals" = {}
+		                            ], true, 13, 1)
+		            , StatsForServer = fn_requestMDX("}StatsForServer", [#"}StatsStatsForServer" = {}, #"}TimeIntervals" = {}], true, 14, 1)
+		            , MessageLog = fn_sendHttpRequest("MessageLog()", null, 15)
+		            , TransactionLog = 
+		                let
+		                    Period = SettingsConfig[TransactionLogPeriodInDays],
+		                    
+		                    Result = if (Period < 0)
+		                        then
+		                            null
+		                        else
+		                            let
+		                                StartDate = Date.StartOfDay(DateTime.LocalNow() + #duration(-Period, 0, 0, 0)),
+		                                ODataStartDate = DateTime.ToText( StartDate, "yyyy-MM-dd" ) & "T00:00:00Z",
+		                                Source = 
+		                                    if (try ConnectionConfig[ConnectionType] otherwise "REST") = "REST"
+		                                    then fn_sendHttpRequest("TransactionLogEntries?$filter=TimeStamp ge " & ODataStartDate, null, 16)
+		                                    else null
+		                            in
+		                                Source
+		                    in
+		                        Result
+		        ]
+		    else null
+		in
+		    HttpRequests
+		```
+	lineageTag: 7886cce4-d6fe-4741-9cf0-d266382f0a74
+	queryGroup: 'Data\UserData\REST loads'
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Record
+
+expression SysNullTables = ```
+		// Copyright © Alex Zaitsev
+		
+		let
+		    NullTables =
+		        [
+					  Default = #table(type table[Message = text], {{"Failed to load or not in use"}})
+					, Configuration = #table(type table[Name = text, Value = text], {})
+		            , CubeDimensions = #table(type table[Cube = text, Dimension = text], {})
+		            , Cubes = #table(type table[Cube = text], {})
+		            , Dimensions = #table(type table[Dimension = text], {})
+		            , DimensionAttributes = #table(type table[Dimension = text, Hierarchy = text, Attribute = text, AttributeType = text], {})
+		            , DimensionElements = #table(type table[Dimension = text
+		                                    , Hierarchy = text
+		                                    , ElementType = text
+		                                    , ElementLevel = text
+		                                    , ElementIndex = number
+		                                    , Element_0 = text
+		                                    , Element_1 = text
+		                                    , Element_2 = text            
+		                                    , Element_3 = text                                    
+		                                    , Element_4 = text                                   
+		                                    , Element_5 = text                                  
+		                                    , Element_6 = text                                   
+		                                    , Element_7 = text                                  
+		                                    , Element_8 = text                                 
+		                                    , Element_9 = text                                   
+		                                    , Element_10 = text                              
+		                                    , ElementKey = text
+		                                    , HierarchyPath = text
+		                                ], {})
+		            , ElementAliases = #table(type table[ElementKey = text, Dimension = text, Element = text, Alias = text, ElementAlias = text], {})
+		            , Users = #table(type table[User = text, UserName = text, UserType = text, IsUserActive = logical, UserEnabled = logical], {})
+		            , UserGroups = #table(type table[User = text, InGroup = text, GroupName = text], {})
+		            , FeedersProcessing = #table(type table[TimeStamp = datetime, Message = text, Cube = text, msDuration = Int64.Type], {})
+		            , ModelElapsedTime = #table(type table[TimeStamp = datetime, Time = time], {})
+		            , TransactionLog = #table(type table[RecordNo = number, TimeStamp = datetime, User = text, Cube = text, OldValue = text, NewValue = text], {})
+		            , TransactionLogDimensions = #table(type table[RecordNo = number, Cube = text, Dimension = text, Element = text, ElementKey = text], {})
+		            , CubeSecurity = #table(type table[Cube = text, Group = text, AccessLevel = text], {})
+		            , CubeStats = #table(type table[Cube = text, Indicator = text, TimeIntervals = text, DateTime = datetime, Value = Int64.Type, HoursOffset = Int64.Type], {})
+		            , UserStats = #table(type table[User = text, Indicator = text, TimeIntervals = text, DateTime = datetime, Value = Int64.Type, HoursOffset = Int64.Type], {})
+		            , ServerStats = #table(type table[Indicator = text, TimeIntervals = text, DateTime = datetime, Value = Int64.Type, HoursOffset = Int64.Type], {})
+		            , PerformanceStats = #table(type table[Rule = text, SKIPCHECK = logical, FEEDERS = logical, IFs = Int64.Type, Nested IFs = Int64.Type, Conditional Feeders = Int64.Type, Directional Feeders = Int64.Type], {})
+		            , #"Tree:Rules:Target<Source" = Table.FromRows( {}, 
+										{
+											"HierarchyPath"
+											, SysName[CubeTreeNodeName] & Text.From(0) 
+											, SysName[CubeTreeNodeName] & Text.From(0) & ": " & SysName[CubeTreeAreaDefinition]
+											, SysName[CubeTreeNodeName] & Text.From(1)
+											, SysName[CubeTreeNodeName] & Text.From(1) & ": " & SysName[CubeTreeAreaDefinition]
+											, SysName[CubeTreeNodeName] & Text.From(2)
+											, SysName[CubeTreeNodeName] & Text.From(2) & ": " & SysName[CubeTreeAreaDefinition]
+											, SysName[CubeTreeNodeName] & Text.From(3)
+											, SysName[CubeTreeNodeName] & Text.From(3) & ": " & SysName[CubeTreeAreaDefinition]
+											, SysName[CubeTreeNodeName] & Text.From(4)
+											, SysName[CubeTreeNodeName] & Text.From(4) & ": " & SysName[CubeTreeAreaDefinition]
+											, SysName[CubeTreeNodeName] & Text.From(5)
+											, SysName[CubeTreeNodeName] & Text.From(5) & ": " & SysName[CubeTreeAreaDefinition]
+											, SysName[CubeTreeNodeName] & Text.From(6)
+											, SysName[CubeTreeNodeName] & Text.From(6) & ": " & SysName[CubeTreeAreaDefinition]
+											, SysName[CubeTreeNodeName] & Text.From(7) 
+											, SysName[CubeTreeNodeName] & Text.From(7) & ": " & SysName[CubeTreeAreaDefinition]
+											, SysName[CubeTreeNodeName] & Text.From(8) 
+											, SysName[CubeTreeNodeName] & Text.From(8) & ": " & SysName[CubeTreeAreaDefinition]
+											, SysName[CubeTreeNodeName] & Text.From(9)
+											, SysName[CubeTreeNodeName] & Text.From(9) & ": " & SysName[CubeTreeAreaDefinition]
+											, SysName[CubeTreeNodeName] & Text.From(10)
+											, SysName[CubeTreeNodeName] & Text.From(10) & ": " & SysName[CubeTreeAreaDefinition]                        
+										}
+		            )
+		            , #"Tree:Feeders:Target<Source" = Table.FromRows( {}, 
+										{
+											"HierarchyPath"
+											, SysName[CubeTreeNodeName] & Text.From(0)
+											, SysName[CubeTreeNodeName] & Text.From(1)
+											, SysName[CubeTreeNodeName] & Text.From(2)
+											, SysName[CubeTreeNodeName] & Text.From(3)
+											, SysName[CubeTreeNodeName] & Text.From(4)
+											, SysName[CubeTreeNodeName] & Text.From(5)
+											, SysName[CubeTreeNodeName] & Text.From(6)
+											, SysName[CubeTreeNodeName] & Text.From(7)            
+											, SysName[CubeTreeNodeName] & Text.From(8)                                    
+											, SysName[CubeTreeNodeName] & Text.From(9)                                   
+											, SysName[CubeTreeNodeName] & Text.From(10)                                                                 
+										}
+			        )
+		            , #"Tree:Processes:Target<Source" = Table.FromRows( {}, 
+										{
+											"HierarchyPath"
+											, SysName[ProcTreeNodeName] & Text.From(0)
+											, SysName[ProcTreeNodeName] & Text.From(1)
+											, SysName[ProcTreeNodeName] & Text.From(2)
+											, SysName[ProcTreeNodeName] & Text.From(3)
+											, SysName[ProcTreeNodeName] & Text.From(4)
+											, SysName[ProcTreeNodeName] & Text.From(5)
+											, SysName[ProcTreeNodeName] & Text.From(6)
+											, SysName[ProcTreeNodeName] & Text.From(7)            
+											, SysName[ProcTreeNodeName] & Text.From(8)                                    
+											, SysName[ProcTreeNodeName] & Text.From(9)                                   
+											, SysName[ProcTreeNodeName] & Text.From(10)                                                                 
+										}
+			        )
+		            , CubeProcessesRelation = #table(type table[Cube = text, Process = text], {})
+					, SysHttpRequestLog = #table(type table[
+							Name = text
+							, RequestContent = text  
+							, RequestBody = text  
+							, RequestNo = Int64.Type
+							, AttemptNo = Int64.Type
+							, RequestResponseTime = datetime
+							, RequestDelay = number
+							, HasConnectionError = logical
+							, ConnectionErrorReason = text
+							, ConnectionErrorMessage = text
+							, ConnectionErrorDetails = text
+							, HttpResponseStatus = Int64.Type
+							, ServerErrodCode = Int64.Type
+							, ServerErrorMessage = text
+							, IsEmpty = logical
+						], {})
+				]
+		in
+		    NullTables
+		```
+	lineageTag: 46f52565-75d6-4bc7-806d-1d7493021003
+	queryGroup: SysData
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Record
+
+expression Tree:Rules:Source>Target =
+		// Copyright © Alex Zaitsev
+		
+		let
+			TreeNodeNames = List.Select(Table.ColumnNames(#"Tree:Rules:Target<Source"), each Text.StartsWith( _ , SysName[CubeTreeNodeName]) and not Text.Contains( _ , ":")),
+			ReversedTreeNodeNames = fn_reverseHierarchy(#"Tree:Rules:Target<Source", TreeNodeNames, "HierarchyPath"),
+			TreeAreaDefinitions =  List.Select(Table.ColumnNames(ReversedTreeNodeNames), each Text.StartsWith( _ , SysName[CubeTreeNodeName]) and Text.Contains( _ , SysName[CubeTreeAreaDefinition])),
+			ReversedAreaDefinitions = fn_reverseHierarchy(ReversedTreeNodeNames, TreeAreaDefinitions),
+			ResultTable = try ReversedAreaDefinitions otherwise SysNullTables[#"Tree:Rules:Target<Source"]
+		in
+		    ResultTable
+	lineageTag: 31ce95db-a019-4eb1-9150-41cc3c56a290
+	queryGroup: Data\UserData
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+
+expression Tree:Feeders:Target<Source =
+		// Copyright © Alex Zaitsev
+		
+		let
+			TreeNodeNames = List.Select(Table.ColumnNames(#"Tree:Feeders:Source>Target"), each Text.StartsWith( _ , SysName[CubeTreeNodeName])),
+			ReversedTable = fn_reverseHierarchy(#"Tree:Feeders:Source>Target", TreeNodeNames, "HierarchyPath"),
+			ResultTable = try ReversedTable otherwise SysNullTables[#"Tree:Feeders:Target<Source"]
+		in
+		    ResultTable
+	lineageTag: bb8f0609-f335-4c38-a2cb-228a42b5ca9d
+	queryGroup: Data\UserData
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+
+/// Optional. The number of recent days for which the transact log will be loaded. If loading log data takes too long, setting the value to -1 is recommended.
+expression '23 TRANSACTION LOG PERIOD' = 30 meta [IsParameterQuery=true, Type="Any", IsParameterQueryRequired=true]
+	lineageTag: 539d2c04-7261-431f-995a-8a0b20b232ae
+	queryGroup: Settings\Params
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Number
+

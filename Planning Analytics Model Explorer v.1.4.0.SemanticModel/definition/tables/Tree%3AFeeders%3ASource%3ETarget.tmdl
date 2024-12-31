@@ -1,0 +1,139 @@
+table Tree:Feeders:Source>Target
+	lineageTag: c549b457-6cf2-4e7e-9a74-6e66375fdc00
+
+	column CubeLevel_0
+		dataType: string
+		lineageTag: 88afddb5-f25d-4c79-a591-b6bc1376f51b
+		summarizeBy: none
+		sourceColumn: CubeLevel_0
+
+		annotation SummarizationSetBy = Automatic
+
+	column CubeLevel_1
+		dataType: string
+		lineageTag: eca78b4e-37cf-44f7-b449-f4f1688e9da2
+		summarizeBy: none
+		sourceColumn: CubeLevel_1
+
+		annotation SummarizationSetBy = Automatic
+
+	column HierarchyPath
+		dataType: string
+		lineageTag: 171176b1-6764-4b7b-a342-875d98c56f30
+		summarizeBy: none
+		sourceColumn: HierarchyPath
+
+		annotation SummarizationSetBy = Automatic
+
+	column CubeLevel_2
+		dataType: string
+		lineageTag: 353d9fe1-001e-42d6-886b-4d2f352e26fb
+		summarizeBy: none
+		sourceColumn: CubeLevel_2
+
+		annotation SummarizationSetBy = Automatic
+
+	column CubeLevel_3
+		dataType: string
+		lineageTag: 1011bca8-63d9-418c-b495-15dcb2be5721
+		summarizeBy: none
+		sourceColumn: CubeLevel_3
+
+		annotation SummarizationSetBy = Automatic
+
+	column CubeLevel_4
+		dataType: string
+		lineageTag: fc3f98a6-1a08-4c14-9cc9-adf06e9b10a7
+		summarizeBy: none
+		sourceColumn: CubeLevel_4
+
+		annotation SummarizationSetBy = Automatic
+
+	column CubeLevel_5
+		dataType: string
+		lineageTag: 25707a90-a835-462c-a45b-6aa08ec9bad5
+		summarizeBy: none
+		sourceColumn: CubeLevel_5
+
+		annotation SummarizationSetBy = Automatic
+
+	column CubeLevel_6
+		dataType: string
+		lineageTag: 92d3bdbf-b8ff-4eed-9c80-e459995ad2b2
+		summarizeBy: none
+		sourceColumn: CubeLevel_6
+
+		annotation SummarizationSetBy = Automatic
+
+	column CubeLevel_7
+		dataType: string
+		lineageTag: 486fbb6b-3073-4d9a-8b43-882a160293c4
+		summarizeBy: none
+		sourceColumn: CubeLevel_7
+
+		annotation SummarizationSetBy = Automatic
+
+	column CubeLevel_8
+		dataType: string
+		lineageTag: 9a7c6cb1-08be-47b3-9dd7-a26413443818
+		summarizeBy: none
+		sourceColumn: CubeLevel_8
+
+		annotation SummarizationSetBy = Automatic
+
+	column CubeLevel_9
+		dataType: string
+		lineageTag: 7595464b-c73d-4d2b-9fd4-feb23134d7a4
+		summarizeBy: none
+		sourceColumn: CubeLevel_9
+
+		annotation SummarizationSetBy = Automatic
+
+	column CubeLevel_10
+		dataType: string
+		lineageTag: 3777b493-1235-4dbc-865d-2ee67b104b0f
+		summarizeBy: none
+		sourceColumn: CubeLevel_10
+
+		annotation SummarizationSetBy = Automatic
+
+	column PathLength = PATHLENGTH('Tree:Feeders:Source>Target'[HierarchyPath])
+		formatString: 0
+		lineageTag: 048a70b6-f597-442c-aaf7-ef76d7b61cd5
+		summarizeBy: sum
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Tree:Feeders:Source>Target = m
+		mode: import
+		queryGroup: Data\UserData
+		source = ```
+				// Copyright © Alex Zaitsev
+				
+				let
+				    ExtractFeedersOnly = Table.TransformColumns(Source_Rules, { "TextContent", ( text ) => Text.AfterDelimiter(text, Text.Upper(KeyWords[FeederRef])) }),
+				    RelatedObjects = Table.AddColumn(
+				                    ExtractFeedersOnly
+				                    , "RelatedObjects"
+				                    , each fn_extractFunctionEntries(Text.From([TextContent]), KeyWords[RuleCubeRef], {0})
+				    ),
+				    // remove a circular reference to the same object
+				    /*
+				    RemoveCircularRefs = if Table.RowCount( RelatedObjects ) > 0
+				                            then Table.FromRecords(Table.TransformRows(RelatedObjects
+				                                                                        , (r) => Record.TransformFields(r, {"RelatedObjects", each List.RemoveItems( _ , { r[Name] } ) })
+				                                                                        )
+				                                )
+				                            else RelatedObjects,                                   
+				    */                        
+					
+				    MaxTreeDepth = fn_calcMaxTreeDepth(RelatedObjects[RelatedObjects]),
+				    ResultTable = try fn_createHierarchyPath(RelatedObjects[[Name], [RelatedObjects]], "Name", "RelatedObjects", SysName[CubeTreeNodeName], MaxTreeDepth) otherwise SysNullTables[#"Tree:Feeders:Target<Source"]
+				in
+				    ResultTable
+				```
+
+	annotation PBI_ResultType = Table
+
+	annotation PBI_NavigationStepName = Navigation
+

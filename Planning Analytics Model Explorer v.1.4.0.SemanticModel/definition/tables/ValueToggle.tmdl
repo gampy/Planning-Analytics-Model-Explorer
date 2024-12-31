@@ -1,0 +1,35 @@
+table ValueToggle
+	lineageTag: a7d843b2-348a-4cc9-b20b-2130cd0f9412
+
+	calculationGroup
+		precedence: 3
+
+		calculationItem Markers = ```
+				SELECTEDMEASURE()
+				
+				```
+
+			formatStringDefinition = SELECTEDMEASUREFORMATSTRING()
+
+		calculationItem Numbers = SELECTEDMEASURE()
+
+			formatStringDefinition = SELECTEDMEASUREFORMATSTRING()
+
+	column Metric
+		dataType: string
+		lineageTag: 29302857-62e3-4b00-9261-26e0f4841eff
+		summarizeBy: none
+		sourceColumn: Name
+		sortByColumn: Ordinal
+
+		annotation SummarizationSetBy = Automatic
+
+	column Ordinal
+		dataType: int64
+		isHidden
+		lineageTag: 615e2b9f-b76e-4e3f-bcdf-9ea4a8f203b9
+		summarizeBy: sum
+		sourceColumn: Ordinal
+
+		annotation SummarizationSetBy = Automatic
+

@@ -1,0 +1,64 @@
+table CubeSecurity
+	lineageTag: a7b1b6e5-cb9e-42f8-a8a1-f73f0435d1dc
+
+	column Cube
+		dataType: string
+		lineageTag: acaca323-c072-4262-8563-41667c9f1c46
+		summarizeBy: none
+		sourceColumn: Cube
+
+		annotation SummarizationSetBy = Automatic
+
+	column Group
+		dataType: string
+		lineageTag: f880a068-696a-411d-98fc-8b864ce861d6
+		summarizeBy: none
+		sourceColumn: Group
+
+		annotation SummarizationSetBy = Automatic
+
+	column AccessLevel
+		dataType: string
+		lineageTag: 0170aff4-7488-4db9-8d2c-14f6a7262f92
+		summarizeBy: none
+		sourceColumn: AccessLevel
+
+		annotation SummarizationSetBy = Automatic
+
+	partition CubeSecurity-72a6dbcb-b1aa-4d47-9c4a-45547c587e72 = m
+		mode: import
+		queryGroup: Data\UserData
+		source = ```
+				// Copyright © Alex Zaitsev
+				
+				let
+				       Source = 
+				        if (try ConnectionConfig[ConnectionType] otherwise "REST") = "REST"
+				        then
+				            let
+				                Dim1 = "}Cubes",
+				                Dim2 = "}Groups",
+				
+				                TabulateCubeSecurity = fn_tabulateCubeData(HttpRequests[CubeSecurity][Cells], HttpRequests[CubeSecurity][Axes]),
+				                CheckCubeSecurity = if Table.IsEmpty(TabulateCubeSecurity) then Table.FromRows({}, {Dim1, Dim2, "Value"}) else TabulateCubeSecurity,
+				                RenameCubeSecurityColumns = Table.RenameColumns(CheckCubeSecurity, {{Dim1, "Cube"}, {Dim2, "Group"}, {"Value", "AccessLevel"}}),
+				                NameSelection = Table.SelectRows(RenameCubeSecurityColumns, each 
+				                                                            let 
+				                                                                Name = [Cube], 
+				                                                                NameFilter = List.MatchesAny( KeyWords[SysMetaDataRef], each not Text.StartsWith( Name, _ ))
+				                                                            in 
+				                                                                NameFilter
+				                ),
+				                CubeSecurity =  Table.SelectColumns(NameSelection, {"Cube", "Group", "AccessLevel"})
+				            in
+				                CubeSecurity 
+				        else
+				            SysNullTables[CubeSecurity]
+				in
+				    try Source otherwise SysNullTables[CubeSecurity]
+				```
+
+	annotation PBI_ResultType = Table
+
+	annotation PBI_NavigationStepName = Navigation
+

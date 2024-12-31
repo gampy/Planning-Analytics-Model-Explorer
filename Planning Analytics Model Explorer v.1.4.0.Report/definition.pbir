@@ -1,0 +1,9 @@
+{
+  "version": "4.0",
+  "datasetReference": {
+    "byPath": {
+      "path": "../Planning Analytics Model Explorer v.1.4.0.SemanticModel"
+    },
+    "byConnection": null
+  }
+}

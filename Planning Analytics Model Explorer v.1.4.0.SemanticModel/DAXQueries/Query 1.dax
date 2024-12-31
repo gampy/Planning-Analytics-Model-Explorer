@@ -1,0 +1,10 @@
+//EVALUATE
+
+//TOPN(3, ALLSELECTED('FeedersProcessingLastRun'), FeedersProcessingLastRun[msDuration], DESC, 'FeedersProcessingLastRun'[Cube], ASC)
+
+ EVALUATE
+SUMMARIZE(FeedersProcessing  
+      , FeedersProcessing[Cube]
+	  , FeedersProcessing[TimeStampByHour]
+      , "Max Duration Per Hour", MAX(FeedersProcessing[msDuration])  
+      )  

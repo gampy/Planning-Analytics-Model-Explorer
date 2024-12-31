@@ -1,0 +1,60 @@
+table CubeProcessesRelation
+	lineageTag: 188f27a2-bfd0-4fed-a3d9-a8de53497bfd
+
+	column Cube
+		dataType: string
+		lineageTag: 384d546d-3ad1-4598-8db3-1fe2b8da2801
+		summarizeBy: none
+		sourceColumn: Cube
+
+		annotation SummarizationSetBy = Automatic
+
+	column Process
+		dataType: string
+		lineageTag: c70b2033-b0d9-419f-a59a-39d453888bfe
+		summarizeBy: none
+		sourceColumn: Process
+
+		annotation SummarizationSetBy = Automatic
+
+	column OperationType
+		dataType: string
+		lineageTag: b1f2a904-3958-4efb-adc5-0e6663c518ab
+		summarizeBy: none
+		sourceColumn: OperationType
+
+		annotation SummarizationSetBy = Automatic
+
+	partition CubeProcessesRelation-54bef6f7-220a-4510-b026-338b6907bdf7 = m
+		mode: import
+		queryGroup: Data\UserData
+		source = ```
+				// Copyright © Alex Zaitsev
+				
+				let 
+				   Source = Source_Processes[[Name], [TextContent], [MetaData]],
+				   ProcessWriteRelatedObjects = Table.AddColumn(
+				                                          Source
+				                                        , "ProcessRelatedObjects"
+				                                        , each fn_extractFunctionEntries(Text.From([TextContent]), KeyWords[ProcessCubeWriteRef], {1, 1, 1, 1}, fn_getProcessVariablesDict(Text.From([TextContent]), "'") )
+				                        ),
+				   AddWriteToRelatedObjects = Table.AddColumn(ProcessWriteRelatedObjects, "OperationType", each "WRITE"),
+				   ProcessReadRelatedObjects = Table.AddColumn(
+				                                          Source
+				                                        , "ProcessRelatedObjects"
+				                                        , each fn_extractFunctionEntries(Text.From([TextContent]), KeyWords[ProcessCubeReadRef], {0, 0}, fn_getProcessVariablesDict(Text.From([TextContent]), "'") )
+				                        ),
+				   AddReadToRelatedObjects = Table.AddColumn(ProcessReadRelatedObjects, "OperationType", each "READ"),
+				
+				   ExpandedProcessRelatedObjects = Table.ExpandListColumn(Table.Combine({ AddWriteToRelatedObjects, AddReadToRelatedObjects}), "ProcessRelatedObjects"),
+				   RemoveNonEvaluatedExpressions = Table.SelectRows(ExpandedProcessRelatedObjects, each not Text_ContainsAnyOf([ProcessRelatedObjects], {"|", ",", ";"}) and [ProcessRelatedObjects] <> null),
+				   RenameColumns = Table.RenameColumns(RemoveNonEvaluatedExpressions, {{"ProcessRelatedObjects", "Cube"}, {"Name", "Process"}})[[Cube], [Process], [OperationType]],
+				   ResultTable = try RenameColumns otherwise SysNullTables[CubeProcessesRelation]
+				in
+				   ResultTable
+				```
+
+	annotation PBI_ResultType = Table
+
+	annotation PBI_NavigationStepName = Navigation
+

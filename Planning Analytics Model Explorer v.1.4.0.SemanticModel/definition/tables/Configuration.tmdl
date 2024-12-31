@@ -1,0 +1,50 @@
+table Configuration
+	lineageTag: a73e74d1-340a-4f41-93bc-2de8d5560822
+
+	column Name
+		dataType: string
+		lineageTag: 59339c0c-360b-4541-8f3d-df9f49d50e29
+		summarizeBy: none
+		sourceColumn: Name
+
+		annotation SummarizationSetBy = Automatic
+
+	column Value
+		dataType: string
+		lineageTag: 13c9ddd0-3332-4705-b29f-dae439509c4a
+		summarizeBy: none
+		sourceColumn: Value
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Configuration-b2311dac-ba43-4bca-ab79-3fbf01930202 = m
+		mode: import
+		queryGroup: Data\UserData
+		source = ```
+				// Copyright © Alex Zaitsev
+				
+				let
+				    Source = 
+				        if (try ConnectionConfig[ConnectionType] otherwise "REST") = "REST"
+				        then
+				            let
+				                Value1 = HttpRequests[Configuration],
+				                ConvertToTable1 = Record.ToTable(Value1),
+				
+				                Value2 = HttpRequests[Server],
+				                ConvertToTable2 = Record.ToTable(Value2),
+				
+				                CombineTable = Table.Distinct(Table.Combine({ ConvertToTable1, ConvertToTable2 })),
+				                FilterRows = Table.SelectRows(CombineTable, each (not Text.StartsWith([Name], "@") and [Name] <> "Name"))
+				            in
+				                FilterRows
+				        else
+				            SysNullTables[Configuration]
+				in
+				    try Source otherwise SysNullTables[Configuration]
+				```
+
+	annotation PBI_ResultType = Exception
+
+	annotation PBI_NavigationStepName = Navigation
+

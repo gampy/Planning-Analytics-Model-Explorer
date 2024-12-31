@@ -1,0 +1,28 @@
+table Tree:Rules:Details
+	lineageTag: e9263e07-57f7-4316-8140-299e65a1690b
+
+	column CubeLevel_
+		dataType: int64
+		formatString: 0
+		lineageTag: 58273eac-c7ec-4ce2-81da-e7c0ed88f5b0
+		summarizeBy: sum
+		sourceColumn: CubeLevel_
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Tree:Rules:Details-a5876215-7f28-4ee9-92ae-04961f3548b8 = m
+		mode: import
+		queryGroup: Data\UserData
+		source =
+				// Copyright © Alex Zaitsev
+				
+				let
+				    Source = Table.FromList(List.Generate( () => 0, each _ < SettingsConfig[InterfaceMaxTreeDepth], each _ +1 ), Splitter.SplitByNothing(), { SysName[CubeTreeNodeName] }, null, ExtraValues.Ignore),
+				    ChangeType = Table.TransformColumnTypes(Source,{{"CubeLevel_", Int64.Type}})
+				in
+				    ChangeType
+
+	annotation PBI_ResultType = Table
+
+	annotation PBI_NavigationStepName = Navigation
+

@@ -1,0 +1,74 @@
+table TransactionLog
+	lineageTag: f0f5b980-bf4e-429b-ba43-07aabf139a3b
+
+	column TimeStamp
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: c5455ba4-b54a-47dd-aa61-96db5e6c0409
+		summarizeBy: none
+		sourceColumn: TimeStamp
+
+		variation Variation
+			isDefault
+			relationship: 81f7ae21-e07f-4496-946a-dd8644e0328c
+			defaultHierarchy: LocalDateTable_1df1e6a0-dc05-444d-a2e4-554e3cdfc54f.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	column User
+		dataType: string
+		lineageTag: a2fb202f-bbf9-493c-a519-652fb31b2fce
+		summarizeBy: none
+		sourceColumn: User
+
+		annotation SummarizationSetBy = Automatic
+
+	column Cube
+		dataType: string
+		lineageTag: c4086c0a-ac13-477c-b0cd-7bc34e4a7ffd
+		summarizeBy: none
+		sourceColumn: Cube
+
+		annotation SummarizationSetBy = Automatic
+
+	column OldValue
+		dataType: string
+		lineageTag: c0bd1ac4-85f1-4e44-8796-c9fe8d07afb1
+		summarizeBy: none
+		sourceColumn: OldValue
+
+		annotation SummarizationSetBy = Automatic
+
+	column NewValue
+		dataType: string
+		lineageTag: f75d2405-aa45-4b49-a653-ed42e748d8cb
+		summarizeBy: none
+		sourceColumn: NewValue
+
+		annotation SummarizationSetBy = Automatic
+
+	column RecordNo
+		dataType: double
+		lineageTag: 90668d57-8ce9-4aee-ab5d-7a86dd832435
+		summarizeBy: none
+		sourceColumn: RecordNo
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	partition TransactionLog-55190fa6-8a84-4906-a415-3d6d1d55bcf0 = m
+		mode: import
+		queryGroup: Data\UserData
+		source =
+				// Copyright © Alex Zaitsev
+				
+				let
+				    Source = Source_TransactionLog[[RecordNo], [TimeStamp], [User], [Cube], [OldValue], [NewValue]]
+				in
+				    try Source otherwise SysNullTables[TransactionLog]
+
+	annotation PBI_ResultType = Table
+
+	annotation PBI_NavigationStepName = Navigation
+

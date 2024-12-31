@@ -1,0 +1,38 @@
+table SelectedCubes
+	lineageTag: 89cb9cbb-d7d8-43e4-a00c-48af99af63a5
+
+	calculationGroup
+		precedence: 4
+
+		calculationItem 'Selected cube 0' = SELECTEDMEASURE()
+
+		calculationItem 'Selected cube 1' = SELECTEDMEASURE()
+
+		calculationItem 'Selected cube 2' = SELECTEDMEASURE()
+
+		calculationItem 'Selected cube 3' = SELECTEDMEASURE()
+
+		calculationItem 'Selected cube 4' = SELECTEDMEASURE()
+
+		calculationItem 'Selected cube 5' = SELECTEDMEASURE()
+
+		calculationItem 'Selected cube 6' = SELECTEDMEASURE()
+
+	column Cube
+		dataType: string
+		lineageTag: ae412765-6056-4a97-adf0-2b615c7275bd
+		summarizeBy: none
+		sourceColumn: Name
+		sortByColumn: Ordinal
+
+		annotation SummarizationSetBy = Automatic
+
+	column Ordinal
+		dataType: int64
+		formatString: 0
+		lineageTag: 5c3984b6-dfbe-4e97-b79d-65fdcc2ac4ab
+		summarizeBy: sum
+		sourceColumn: Ordinal
+
+		annotation SummarizationSetBy = Automatic
+

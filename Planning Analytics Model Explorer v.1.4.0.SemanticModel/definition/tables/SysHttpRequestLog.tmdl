@@ -1,0 +1,172 @@
+table SysHttpRequestLog
+	lineageTag: 412e2343-ebfb-4fc0-929f-6584b2e26d32
+
+	column RequestNo
+		dataType: int64
+		formatString: 0
+		lineageTag: eae20d90-a466-4cfd-884d-09eb1e6a780e
+		summarizeBy: sum
+		sourceColumn: RequestNo
+
+		annotation SummarizationSetBy = Automatic
+
+	column AttemptNo
+		dataType: int64
+		formatString: 0
+		lineageTag: 7b411d2b-766c-4287-9aeb-f1293ae43a07
+		summarizeBy: sum
+		sourceColumn: AttemptNo
+
+		annotation SummarizationSetBy = Automatic
+
+	column RequestResponseTime
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: c9c9d54b-47bf-4024-b57b-283086f54518
+		summarizeBy: none
+		sourceColumn: RequestResponseTime
+
+		variation Variation
+			isDefault
+			relationship: bb51fd68-cdc8-4252-9d8d-4f0e897c76bb
+			defaultHierarchy: LocalDateTable_05d5940f-c3a1-4b99-991d-f3dd28ee5f21.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	column RequestDelay
+		dataType: double
+		lineageTag: 96728048-d5a1-456b-abfb-cbceb0583d10
+		summarizeBy: sum
+		sourceColumn: RequestDelay
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column HasConnectionError
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: febf58e2-b23a-4519-bcc0-fe5da203f802
+		summarizeBy: none
+		sourceColumn: HasConnectionError
+
+		annotation SummarizationSetBy = Automatic
+
+	column HttpResponseStatus
+		dataType: int64
+		formatString: 0
+		lineageTag: 424b3594-23ec-4360-b431-eb8572703161
+		summarizeBy: sum
+		sourceColumn: HttpResponseStatus
+
+		annotation SummarizationSetBy = Automatic
+
+	column IsEmpty
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: b3947f20-2a73-4b49-bd68-658f6ffe66cf
+		summarizeBy: none
+		sourceColumn: IsEmpty
+
+		annotation SummarizationSetBy = Automatic
+
+	column Name
+		dataType: string
+		lineageTag: 5a9c0ef3-06a1-47d1-bacf-e831d652a36a
+		summarizeBy: none
+		sourceColumn: Name
+
+		annotation SummarizationSetBy = Automatic
+
+	column RequestContent
+		dataType: string
+		lineageTag: 8dcec69d-768e-4a6d-9a86-d5eb84593e2e
+		summarizeBy: none
+		sourceColumn: RequestContent
+
+		annotation SummarizationSetBy = Automatic
+
+	column RequestBody
+		dataType: string
+		lineageTag: 7f867b92-f7cd-45ae-93bc-0a179f3428f8
+		summarizeBy: none
+		sourceColumn: RequestBody
+
+		annotation SummarizationSetBy = Automatic
+
+	column ConnectionErrorReason
+		dataType: string
+		lineageTag: e0ac5407-1ca8-446c-a614-0eec61d2158c
+		summarizeBy: none
+		sourceColumn: ConnectionErrorReason
+
+		annotation SummarizationSetBy = Automatic
+
+	column ConnectionErrorMessage
+		dataType: string
+		lineageTag: 89af4009-7052-449c-b310-12ec34c217bd
+		summarizeBy: none
+		sourceColumn: ConnectionErrorMessage
+
+		annotation SummarizationSetBy = Automatic
+
+	column ConnectionErrorDetails
+		dataType: string
+		lineageTag: b097eabc-857e-4985-ae5a-39972523d99e
+		summarizeBy: none
+		sourceColumn: ConnectionErrorDetails
+
+		annotation SummarizationSetBy = Automatic
+
+	column ServerErrorMessage
+		dataType: string
+		lineageTag: 23f53385-dae0-4f3e-b97d-61b269d03701
+		summarizeBy: none
+		sourceColumn: ServerErrorMessage
+
+		annotation SummarizationSetBy = Automatic
+
+	column ServerErrorCode
+		dataType: string
+		lineageTag: e4d6ab24-64f2-4f4b-b5e0-f3f93b1e711c
+		summarizeBy: none
+		sourceColumn: ServerErrorCode
+
+		annotation SummarizationSetBy = Automatic
+
+	partition SysHttpRequestLog = m
+		mode: import
+		queryGroup: SysData
+		source = ```
+				// Copyright © Alex Zaitsev
+				
+				let
+				    Source = Record.ToTable(HttpRequests),
+				    CheckEmptiness = Table.AddColumn(Source, "IsEmpty", ( rec ) => 
+				                                                                    if rec[Value][value]? <> null or rec[Value][Cells]? <> null 
+				                                                                    then  (try List.IsEmpty(rec[Value][value]) otherwise true) and (try List.IsEmpty(rec[Value][Cells]) otherwise true)
+				                                                                    else (try List.IsEmpty(Record.ToList(rec[Value])) otherwise true)
+				                                                                    , type logical
+				    ),
+				    ExpandMetaData = Table.ExpandRecordColumn(CheckEmptiness, "Value", {"@metadata", "error"}),
+				    ExpandMetaDataTable = Table.ExpandTableColumn(ExpandMetaData, "@metadata", {"RequestNo", "RequestContent", "RequestBody", "AttemptNo", "RequestDelay", "RequestResponseTime", "HasConnectionError", "ConnectionErrorReason", "ConnectionErrorMessage", "ConnectionErrorDetails", "HttpResponseStatus"}),
+				    ExpendErrorRecord = Table.ExpandRecordColumn(ExpandMetaDataTable, "error", {"code", "message"}, {"ServerErrorCode", "ServerErrorMessage"}),
+				    TransformColumnTypes = Table.TransformColumnTypes(ExpendErrorRecord, {
+				                                                                            {"RequestNo", Int64.Type}
+				                                                                            , {"AttemptNo", Int64.Type}
+				                                                                            , {"RequestResponseTime", type datetime}
+				                                                                            , {"RequestDelay", type number}
+				                                                                            , {"HasConnectionError", type logical}
+				                                                                            , {"HttpResponseStatus", Int64.Type}
+				                                                                            , {"IsEmpty", type logical}
+				    }),
+				    RemoveNullRequests = Table.SelectRows(TransformColumnTypes, each ([RequestNo] <> null)),
+				    Return = try RemoveNullRequests otherwise SysNullTables[SysHttpRequestLog]
+				in
+				    Return
+				```
+
+	annotation PBI_ResultType = Exception
+
+	annotation PBI_NavigationStepName = Navigation
+

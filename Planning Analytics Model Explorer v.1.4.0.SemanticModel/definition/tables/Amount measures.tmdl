@@ -1,0 +1,1254 @@
+table 'Amount measures'
+	lineageTag: 95036771-47d6-4515-a3bb-6cc590c5d13d
+
+	measure 'Cubes: Target<Source' = ```
+			
+			    VAR ItrLevel = [HierarchyBrowseDepth]
+			    VAR LevelItem = PATHITEM(MIN('Tree:Rules:Target<Source'[HierarchyPath]), ItrLevel)
+			
+			    VAR NextLevelCount = 
+			        SWITCH( ItrLevel
+			                , 1, DISTINCTCOUNTNOBLANK('Tree:Rules:Target<Source'[CubeLevel_1])
+			                , 2, DISTINCTCOUNTNOBLANK('Tree:Rules:Target<Source'[CubeLevel_2])
+			                , 3, DISTINCTCOUNTNOBLANK('Tree:Rules:Target<Source'[CubeLevel_3])
+			                , 4, DISTINCTCOUNTNOBLANK('Tree:Rules:Target<Source'[CubeLevel_4])
+			                , 5, DISTINCTCOUNTNOBLANK('Tree:Rules:Target<Source'[CubeLevel_5])
+			                , 6, DISTINCTCOUNTNOBLANK('Tree:Rules:Target<Source'[CubeLevel_6])
+			                , 7, DISTINCTCOUNTNOBLANK('Tree:Rules:Target<Source'[CubeLevel_7])
+			                , 8, DISTINCTCOUNTNOBLANK('Tree:Rules:Target<Source'[CubeLevel_8])
+			                , 9, DISTINCTCOUNTNOBLANK('Tree:Rules:Target<Source'[CubeLevel_9])
+			                , 10, DISTINCTCOUNTNOBLANK('Tree:Rules:Target<Source'[CubeLevel_10])
+			                , 11, 0
+			        ) + 0
+			
+			    RETURN
+			            IF (ISBLANK(LevelItem) || LevelItem = "", BLANK(), NextLevelCount)
+			```
+		formatString: 0
+		displayFolder: Maps\Tree:Rules\Target<Source
+		lineageTag: 686cbd1a-3f90-4a85-beff-39f852d5ab36
+
+		changedProperty = FormatString
+
+	measure 'Cubes < Proс Target < Proc Source' = ```
+			
+			    VAR ItrLevel = [HierarchyBrowseDepth]
+			    VAR LevelItem = 
+			        SWITCH( ItrLevel
+			                , 0, 0
+					        , 1, SELECTEDVALUE( CubeProcessesRelation[Cube] )
+			                , 2, SELECTEDVALUE( CubeProcessesRelation[Process] )
+			                , PATHITEM(MIN('Tree:Processes:Target<Source'[HierarchyPath]), ItrLevel - 1)
+			        ) 
+			
+			    VAR NextLevelCount = 
+			        SWITCH( ItrLevel
+			                , 1, DISTINCTCOUNTNOBLANK( CubeProcessesRelation[Process] )
+			                , 2, DISTINCTCOUNTNOBLANK('Tree:Processes:Target<Source'[ProcLevel_1]) 
+			                , 3, DISTINCTCOUNTNOBLANK('Tree:Processes:Target<Source'[ProcLevel_2])
+			                , 4, DISTINCTCOUNTNOBLANK('Tree:Processes:Target<Source'[ProcLevel_3])
+			                , 5, DISTINCTCOUNTNOBLANK('Tree:Processes:Target<Source'[ProcLevel_4])
+			                , 6, DISTINCTCOUNTNOBLANK('Tree:Processes:Target<Source'[ProcLevel_5])
+			                , 7, DISTINCTCOUNTNOBLANK('Tree:Processes:Target<Source'[ProcLevel_6])
+			                , 8, DISTINCTCOUNTNOBLANK('Tree:Processes:Target<Source'[ProcLevel_7])
+			                , 9, DISTINCTCOUNTNOBLANK('Tree:Processes:Target<Source'[ProcLevel_8])
+			                , 10, DISTINCTCOUNTNOBLANK('Tree:Processes:Target<Source'[ProcLevel_9])
+			                , 11, DISTINCTCOUNTNOBLANK('Tree:Processes:Target<Source'[ProcLevel_10])
+			                , 0
+			        ) + 0
+			
+			    RETURN
+			            IF (ISBLANK(LevelItem) || LevelItem = "", BLANK(), IF(NextLevelCount = 0, 0, NextLevelCount))
+			            
+			```
+		formatString: 0
+		displayFolder: Maps\Tree:Processes:Target<Source
+		lineageTag: c723ccec-8be3-4354-8e1c-f5252c3cbc6b
+
+		changedProperty = FormatString
+
+	measure 'Elements in Hierarchy' = ```
+			
+			    IF(
+			         [IsHierarchySelected]
+			        , COUNTROWS('DimensionElements') 
+			        , IF ( 
+			                [IsDimensionSelected]
+			                , COUNTX(FILTER('DimensionElements', 'DimensionElements'[Hierarchy] = SELECTEDVALUE(DimensionElements[Dimension])), DimensionElements[Hierarchy])
+			                , 0
+			        )
+			    )
+			```
+		formatString: 0
+		displayFolder: Cube Info
+		lineageTag: dc3f3553-9545-4c34-8258-a0b3fec729b7
+
+	measure Cubes = ```
+			
+			    VAR Result = COUNTROWS(DISTINCT(ALL(Cubes[Cube])))
+			    RETURN
+			        IF (ISBLANK(Result), 0, Result)
+			```
+		formatString: 0
+		displayFolder: Cube Info
+		lineageTag: ba0144fe-d627-4968-8099-f179b4bf9042
+
+	measure 'Dimensions in Cube' = ```
+			
+			    IF( [IsCubeSelected], COUNTROWS(ALLSELECTED('CubeDimensions')), 0)
+			
+			```
+		displayFolder: Cube Info
+		lineageTag: 5b98cc63-68d7-483e-a18e-42f6c0e416d5
+
+		formatStringDefinition = "0"
+
+	measure HierarchyBrowseDepth = ```
+			
+			//Only one area is in scope
+			
+			// Rules: Target < Source
+			  ISFILTERED ( 'Tree:Rules:Target<Source'[CubeLevel_0] )
+			+ ISFILTERED ( 'Tree:Rules:Target<Source'[CubeLevel_1] )
+			+ ISFILTERED ( 'Tree:Rules:Target<Source'[CubeLevel_2] )
+			+ ISFILTERED ( 'Tree:Rules:Target<Source'[CubeLevel_3] )
+			+ ISFILTERED ( 'Tree:Rules:Target<Source'[CubeLevel_4] )
+			+ ISFILTERED ( 'Tree:Rules:Target<Source'[CubeLevel_5] )
+			+ ISFILTERED ( 'Tree:Rules:Target<Source'[CubeLevel_6] )
+			+ ISFILTERED ( 'Tree:Rules:Target<Source'[CubeLevel_7] )
+			+ ISFILTERED ( 'Tree:Rules:Target<Source'[CubeLevel_8] )
+			+ ISFILTERED ( 'Tree:Rules:Target<Source'[CubeLevel_9] )
+			+ ISFILTERED ( 'Tree:Rules:Target<Source'[CubeLevel_10] )
+			
+			// Rules: Source > Targe
+			// + ISFILTERED ( 'Tree:Rules:Source>Target'[CubeLevel_0] )
+			// + ISFILTERED ( 'Tree:Rules:Source>Target'[CubeLevel_1] )
+			// + ISFILTERED ( 'Tree:Rules:Source>Target'[CubeLevel_2] )
+			// + ISFILTERED ( 'Tree:Rules:Source>Target'[CubeLevel_3] )
+			// + ISFILTERED ( 'Tree:Rules:Source>Target'[CubeLevel_4] )
+			// + ISFILTERED ( 'Tree:Rules:Source>Target'[CubeLevel_5] )
+			// + ISFILTERED ( 'Tree:Rules:Source>Target'[CubeLevel_6] )
+			// + ISFILTERED ( 'Tree:Rules:Source>Target'[CubeLevel_7] )
+			// + ISFILTERED ( 'Tree:Rules:Source>Target'[CubeLevel_8] )
+			// + ISFILTERED ( 'Tree:Rules:Source>Target'[CubeLevel_9] )
+			// + ISFILTERED ( 'Tree:Rules:Source>Target'[CubeLevel_10] )
+			
+			+ ISFILTERED ( 'Tree:Feeders:Source>Target'[CubeLevel_0] )
+			+ ISFILTERED ( 'Tree:Feeders:Source>Target'[CubeLevel_1] )
+			+ ISFILTERED ( 'Tree:Feeders:Source>Target'[CubeLevel_2] )
+			+ ISFILTERED ( 'Tree:Feeders:Source>Target'[CubeLevel_3] )
+			+ ISFILTERED ( 'Tree:Feeders:Source>Target'[CubeLevel_4] )
+			+ ISFILTERED ( 'Tree:Feeders:Source>Target'[CubeLevel_5] )
+			+ ISFILTERED ( 'Tree:Feeders:Source>Target'[CubeLevel_6] )
+			+ ISFILTERED ( 'Tree:Feeders:Source>Target'[CubeLevel_7] )
+			+ ISFILTERED ( 'Tree:Feeders:Source>Target'[CubeLevel_8] )
+			+ ISFILTERED ( 'Tree:Feeders:Source>Target'[CubeLevel_9] )
+			+ ISFILTERED ( 'Tree:Feeders:Source>Target'[CubeLevel_10] )  
+			
+			// Feeders: Target < Source
+			// + ISFILTERED ( 'Tree:Feeders:Target<Source'[CubeLevel_0] )
+			// + ISFILTERED ( 'Tree:Feeders:Target<Source'[CubeLevel_1] )
+			// + ISFILTERED ( 'Tree:Feeders:Target<Source'[CubeLevel_2] )
+			// + ISFILTERED ( 'Tree:Feeders:Target<Source'[CubeLevel_3] )
+			// + ISFILTERED ( 'Tree:Feeders:Target<Source'[CubeLevel_4] )
+			// + ISFILTERED ( 'Tree:Feeders:Target<Source'[CubeLevel_5] )
+			// + ISFILTERED ( 'Tree:Feeders:Target<Source'[CubeLevel_6] )
+			// + ISFILTERED ( 'Tree:Feeders:Target<Source'[CubeLevel_7] )
+			// + ISFILTERED ( 'Tree:Feeders:Target<Source'[CubeLevel_8] )
+			// + ISFILTERED ( 'Tree:Feeders:Target<Source'[CubeLevel_9] )
+			// + ISFILTERED ( 'Tree:Feeders:Target<Source'[CubeLevel_10] )
+			
+			// Cubes < Proс Target < Proc Source]
+			+ ISFILTERED ( CubeProcessesRelation[Cube] )
+			+ ISFILTERED ( CubeProcessesRelation[Process] )
+			//+ ISFILTERED ( ProcessTree_TargetToSource[ProcLevel_0] )
+			+ ISFILTERED ( 'Tree:Processes:Target<Source'[ProcLevel_1] )
+			+ ISFILTERED ( 'Tree:Processes:Target<Source'[ProcLevel_2] )
+			+ ISFILTERED ( 'Tree:Processes:Target<Source'[ProcLevel_3] )
+			+ ISFILTERED ( 'Tree:Processes:Target<Source'[ProcLevel_4] )
+			+ ISFILTERED ( 'Tree:Processes:Target<Source'[ProcLevel_5] )
+			+ ISFILTERED ( 'Tree:Processes:Target<Source'[ProcLevel_6] )
+			+ ISFILTERED ( 'Tree:Processes:Target<Source'[ProcLevel_7] )
+			+ ISFILTERED ( 'Tree:Processes:Target<Source'[ProcLevel_8] )
+			+ ISFILTERED ( 'Tree:Processes:Target<Source'[ProcLevel_9] )
+			+ ISFILTERED ( 'Tree:Processes:Target<Source'[ProcLevel_10] )
+			
+			```
+		displayFolder: Maps
+		lineageTag: b132df2e-5506-4aed-ad74-7f0aea85ec80
+
+		changedProperty = IsHidden
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'TopN Cubes: Size in memory' = ```
+			
+			    // get the cubes for which we want to calculate TopN + Others 
+			    VAR CubesAll = SELECTCOLUMNS(ALL(CubesWithOthers), "RankCube", CubesWithOthers[Cube])  
+			    // add a measure that we use for ranking
+			    VAR CubesWithValue = ADDCOLUMNS( CubesAll, "RankMeasure", CALCULATE([Cube Memory], ALL(Cubes)) )
+			    // add a column with the rank of the measure within the cubes 
+			    VAR CubesWithRank = ADDCOLUMNS(CubesWithValue, "Rank", RANKX(CubesWithValue, [RankMeasure], [RankMeasure], DESC, Dense)) 
+			    // calculate whether the Cube is a Top-item or belongs to Others 
+			    VAR CubesWithTop = ADDCOLUMNS(CubesWithRank, "TopOrOthers", IF([Rank] <= MAX('CubesTopN'[Number]), [RankCube], [cOthers]))
+			    // select the final items for which the value is calculated 
+			    VAR CubesFinal = SELECTCOLUMNS( // we only select a single column to be used with TREATAS() in the final filter
+			        FILTER(
+			            CubesWithTop, 
+			            CONTAINSROW(VALUES(CubesWithOthers[Cube]), [TopOrOthers]) // need to obey current filters on _wOthers table. e.g. after Drill-Down
+			            && CONTAINSROW(VALUES(Cubes[Cube]), [RankCube]) // need to obey current filters on base table
+			        ) 
+			        , "TopN_Others"
+			        , [RankCube]
+			    ) 
+			    RETURN      
+			    CALCULATE(
+			        [Cube Memory], 
+			        TREATAS(CubesFinal, CubesWithOthers[Cube])
+			    )
+			```
+		displayFolder: Cube Stats
+		lineageTag: e9ac555d-78cd-4621-9248-bc68924c4d42
+
+		formatStringDefinition =
+				VAR _base = 1024
+				VAR _value = IF (SELECTEDMEASURE() > 0, SELECTEDMEASURE(), 1)
+				VAR _ordinal = TRUNC(LOG(_value, _base))
+				
+				VAR _denominator = LOOKUPVALUE(Units[Size denominator], Units[Ordinal], _ordinal)
+				VAR _rounding = LOOKUPVALUE(Units[Size rounding], Units[Ordinal], _ordinal)
+				VAR _unit = LOOKUPVALUE(Units[Size unit], Units[Ordinal], _ordinal)
+				
+				VAR _format = """" & ROUND((SELECTEDMEASURE() / _denominator), _rounding) & """" & _unit
+				RETURN
+				    _format
+
+		changedProperty = FormatString
+
+	measure 'Cube Memory' = ```
+			
+			    CALCULATE( SUM( 'CubeStats'[Value] ) 
+			                , TREATAS({ "Total Memory Used", "Memory Used for Views", "Memory Used for Calculations", "Memory Used for Feeders", "Memory Used for Input Data" }, 'CubeStats'[Indicator] )
+			                , FILTER('CubeStats', 'CubeStats'[DateTime] = MAX('CubeStats'[DateTime]))
+			    )
+			
+			```
+		displayFolder: Cube Stats
+		lineageTag: 97c5120d-5cb8-4535-a31c-ca57a12edef6
+
+		formatStringDefinition =
+				VAR _base = 1000
+				VAR _value = IF (SELECTEDMEASURE() > 0, SELECTEDMEASURE(), 1)
+				VAR _ordinal = TRUNC(LOG(_value, _base))
+				VAR _format = LOOKUPVALUE(Units[Decimal formatting], Units[Ordinal], _ordinal)
+				RETURN
+				    _format
+
+		changedProperty = FormatString
+
+	measure DimHierarchyMaxDepth = MAX('DimensionElements'[HierarchyDepth])
+		isHidden
+		displayFolder: Cube Info
+		lineageTag: c213dc92-25f6-4cad-ac8e-a76a2dc9acba
+
+	measure DimHierarchyBrowseDepth = ```
+			
+			      ISINSCOPE( 'DimensionElements'[Element_0] )
+			    + ISINSCOPE( 'DimensionElements'[Element_1] )
+			    + ISINSCOPE( 'DimensionElements'[Element_2] )
+			    + ISINSCOPE( 'DimensionElements'[Element_3] )
+			    + ISINSCOPE( 'DimensionElements'[Element_4] )
+			    + ISINSCOPE( 'DimensionElements'[Element_5] )
+			    + ISINSCOPE( 'DimensionElements'[Element_6] )
+			    + ISINSCOPE( 'DimensionElements'[Element_7] )
+			    + ISINSCOPE( 'DimensionElements'[Element_8] )
+			    + ISINSCOPE( 'DimensionElements'[Element_9] )
+			    + ISINSCOPE( 'DimensionElements'[Element_10] )
+			```
+		isHidden
+		displayFolder: Cube Info
+		lineageTag: b45e5eb5-4365-40c9-8636-ac63ab683e76
+
+	measure 'Total Users' = ```
+			
+			    VAR TotalUsers = 
+			        COUNTROWS(
+			            VALUES('Users'[User])
+			        )
+			    RETURN
+			        IF (ISBLANK(TotalUsers), 0, TotalUsers)
+			
+			```
+		formatString: 0
+		displayFolder: User Stats
+		lineageTag: 2f5b54cf-3100-43c6-927c-1aa0f37dfb67
+
+	measure 'Current Active Users' = ```
+			
+			    VAR CurrentActiveUsers = 
+			        COUNTROWS(
+			            FILTER(ALL('Users'), 'Users'[IsUserActive])
+			        )
+			
+			RETURN
+			    IF(ISBLANK(CurrentActiveUsers), 0, CurrentActiveUsers)
+			```
+		formatString: 0
+		displayFolder: User Stats
+		lineageTag: 9aa73b61-6e01-4077-b18c-a9a4b51ed612
+
+	measure 'Max Active Users' = ```
+			
+			    // get unique list of the DateTimes
+			    VAR DateTimes = SELECTCOLUMNS(ALL(UserStats), "DateTime", UserStats[DateTime]) 
+			    // add a count of unique users for each DateTime period
+			    VAR UsersCount = ADDCOLUMNS( DateTimes, "UserCount", [Active Users] )
+			    // calculate maximum number of users at the same DateTime period
+			    VAR MaxActiveUsers = MAXX(UsersCount, [UserCount])
+			RETURN
+			    IF(ISBLANK(MaxActiveUsers), [Current Active Users], MaxActiveUsers)
+			```
+		formatString: 0
+		displayFolder: User Stats
+		lineageTag: d752a514-d47e-46f4-901b-40baa873941c
+
+		changedProperty = FormatString
+
+	measure 'User Quering Intensity Ratio' = ```
+			
+			    DIVIDE(
+			        [Max Request Count]
+			        , CALCULATE([Max Request Count], ALLEXCEPT(UserStats, Users[UserName], UserStats[User]))
+			    )
+			```
+		formatString: 0.00%;-0.00%;0.00%
+		displayFolder: User Stats
+		lineageTag: 87a789b9-54b9-4e2d-bb1f-75e9c26adc53
+
+	measure 'Active Users' = ```
+			
+			    VAR ActiveUsers = 
+			        CALCULATE(
+			            DISTINCTCOUNT('UserStats'[User])
+			            , FILTER('UserStats', [Max Request Count] > 0)
+			    )
+			RETURN
+			    IF(ISBLANK(ActiveUsers), 0, ActiveUsers)
+			```
+		formatString: 0
+		displayFolder: User Stats
+		lineageTag: 27e5ee35-4e60-4c65-8112-3537022b50d7
+
+	measure 'Element Alias' = ```
+			
+			    IF(
+			        NOT [IsDimensionElementsFiltered] || [DimHierarchyBrowseDepth] > [DimHierarchyMaxDepth]
+			        , BLANK()
+			        , CALCULATE(                
+			            //    CALCULATE( COUNTA('ElementAliases'[ElementAlias]), REMOVEFILTERS('DimensionElements') ) 
+			              SELECTEDVALUE('ElementAliases'[Element], " ")
+			            , FILTER('DimensionElements', 'DimensionElements'[HierarchyDepth] = MIN('DimensionElements'[HierarchyDepth]))
+			        )
+			    )
+			```
+		displayFolder: Cube Info
+		lineageTag: 997f2cb1-9a87-47e5-a417-4697a4fb0861
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Hierarchy Depth' = IF([IsDimensionSelected] || [IsHierarchySelected], MAX('DimensionElements'[ElementLevel]), 0)
+		formatString: 0
+		displayFolder: Cube Info
+		lineageTag: d2858980-e0fd-4d32-b8a7-6b2feced9e59
+
+	measure 'Tr Element Alias' = ```
+			
+			        IF( [IsTransactionLogRowSelected]   
+			            , VAR SelectedElementALias = CALCULATE( MIN('ElementAliases'[ElementAlias]), USERELATIONSHIP('TransactionLogDimensions'[ElementKey], 'ElementAliases'[ElementKey]))
+			            RETURN
+			               IF ( ISBLANK(SelectedElementAlias), SELECTEDVALUE('TransactionLogDimensions'[Element]), SelectedElementAlias )
+			            , BLANK()
+			        )
+			```
+		displayFolder: Transaction Log
+		lineageTag: c1693a3e-c6f9-4e72-8362-1e41de2f7aee
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Cubes by user' = ```
+			
+			    IF ( SELECTEDMEASURENAME() = [Selected Security Item] 
+			    , DISTINCTCOUNTNOBLANK( CubeSecurity[Cube] )
+			    , BLANK()
+			    )
+			```
+		displayFolder: Security
+		lineageTag: 20ea2a37-b5a9-4ef6-a8a2-ff6d63443f1a
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure Rules = ```
+			
+			    VAR Result = COUNTROWS(DISTINCT(ALL('Tree:Rules:Target<Source'[CubeLevel_0])))
+			    RETURN
+			        IF (ISBLANK(Result), 0, Result)
+			```
+		displayFolder: Cube Info
+		lineageTag: f6919536-766f-4827-a3c6-1c0f01c1ab60
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure Processes = ```
+			
+			    VAR Result = COUNTROWS(DISTINCT(ALL(CubeProcessesRelation[Process])))
+			    RETURN
+			        IF (ISBLANK(Result), 0, Result)
+			```
+		displayFolder: Cube Info
+		lineageTag: af624e04-985e-4766-a572-2761b847243d
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure IsCubeSelected = ```
+			
+			       NOT ISBLANK(SELECTEDVALUE('Cubes'[Cube]))
+			    || NOT ISBLANK(SELECTEDVALUE('CubeDimensions'[Cube]))
+			    || NOT ISBLANK(SELECTEDVALUE('CubeProcessesRelation'[Cube]))
+			```
+		displayFolder: Selected Metadata
+		lineageTag: a25d1ff7-91db-492b-90ce-4034d45a899a
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Users by cube' = ```
+			
+			    IF ( SELECTEDMEASURENAME() = [Selected Security Item] 
+			    , DISTINCTCOUNTNOBLANK( UserGroups[User] )
+			    , BLANK()
+			    )
+			```
+		displayFolder: Security
+		lineageTag: 0b284c0f-cd6c-48a9-842a-d0d22389c858
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure IsDimensionSelected = ```
+			
+			       NOT ISBLANK(SELECTEDVALUE('CubeDimensions'[Dimension]))
+			    || NOT ISBLANK(SELECTEDVALUE('DimensionElements'[Dimension]))
+			```
+		displayFolder: Selected Metadata
+		lineageTag: db0f41c1-f023-4e89-a73f-c7d587b20290
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure IsHierarchySelected = ```
+			
+			    NOT ISBLANK(SELECTEDVALUE('DimensionElements'[Hierarchy]))
+			```
+		displayFolder: Selected Metadata
+		lineageTag: 9d4aca0e-3d11-499a-9c13-ce9d1e87d4b3
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Populated Cells in Cube' = ```
+			
+			    VAR Amount = IF( [IsCubeSelected], [Populated Cells], 0 )
+			
+			    RETURN
+			        IF (ISBLANK(Amount), 0, Amount)
+			```
+		displayFolder: Cube Stats
+		lineageTag: fc4e6a5d-3e73-496a-a3cb-2960f1182e66
+
+		formatStringDefinition =
+				VAR _base = 1000
+				VAR _value = IF (SELECTEDMEASURE() > 0, SELECTEDMEASURE(), 1)
+				VAR _ordinal = TRUNC(LOG(_value, _base))
+				VAR _format = LOOKUPVALUE(Units[Decimal formatting], Units[Ordinal], _ordinal)
+				RETURN
+				    _format
+
+	measure 'Selected Security Item' = SELECTEDVALUE( 'SecurityToggle'[Name] )
+		displayFolder: Security
+		lineageTag: 127a5c53-9284-4af4-aa3c-10a0bb807f6f
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure IsUserSelected = ```
+			
+			       NOT ISBLANK(SELECTEDVALUE('Users'[User]))
+			    || NOT ISBLANK(SELECTEDVALUE('Users'[UserName]))
+			```
+		displayFolder: Selected Metadata
+		lineageTag: 34b9b574-2588-4b4d-8b91-4b916b464518
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Access Level' = ```
+			
+			    IF ( ([Cubes by user] > 0 && ISINSCOPE(CubeSecurity[Cube])) || ([Users by cube] > 0 && ISINSCOPE(Users[UserName] )) 
+			        , IF ( COUNTAX(FILTER('CubeSecurity', CubeSecurity[AccessLevel] = "WRITE" || CubeSecurity[AccessLevel] = "ADMIN"), CubeSecurity[AccessLevel]) > 0
+			                , 2
+			                , IF ( COUNTAX(FILTER(CubeSecurity, CubeSecurity[AccessLevel] = "READ"), CubeSecurity[AccessLevel]) > 0
+			                    , 1
+			                )
+			        )
+			    )
+			```
+		displayFolder: Security
+		lineageTag: 0efb7dde-5a78-4026-b247-4a368af771c2
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure IsTransactionLogRowSelected = ```
+			
+			    NOT ISBLANK(SELECTEDVALUE(TransactionLog[TimeStamp]))
+			```
+		displayFolder: Selected Metadata
+		lineageTag: 9f85fc5a-6acc-427b-80e9-483c30087256
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Security Groups' = ```
+			
+			    VAR SecurityGroups = DISTINCTCOUNT(UserGroups[GroupName])
+			    RETURN
+			        IF(ISBLANK(SecurityGroups), 0, SecurityGroups)
+			```
+		displayFolder: Security
+		lineageTag: 731cde0c-84ed-417e-a619-08a5bdb28252
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Model Memory' = ```
+			
+			    CALCULATE( SUM( 'ServerStats'[Value] )
+			                , TREATAS({ "Memory Used", "Memory in Garbage" }, 'ServerStats'[Indicator] )
+			                , FILTER('ServerStats', 'ServerStats'[DateTime] = MAX('ServerStats'[DateTime]))
+			    )
+			```
+		displayFolder: Server Stats
+		lineageTag: 4ccfee34-2a6b-46dc-b588-bd9da9bbda8d
+
+		formatStringDefinition =
+				VAR _base = 1024
+				VAR _value = IF (SELECTEDMEASURE() > 0, SELECTEDMEASURE(), 1)
+				VAR _ordinal = TRUNC(LOG(_value, _base))
+				
+				VAR _denominator = LOOKUPVALUE(Units[Size denominator], Units[Ordinal], _ordinal)
+				VAR _rounding = LOOKUPVALUE(Units[Size rounding], Units[Ordinal], _ordinal)
+				VAR _unit = LOOKUPVALUE(Units[Size unit], Units[Ordinal], _ordinal)
+				
+				VAR _format = """" & ROUND((SELECTEDMEASURE() / _denominator), _rounding) & """" & _unit
+				RETURN
+				    _format
+
+	measure 'Model Numbers' = ```
+			
+			    CALCULATE( SUM( 'ServerStats'[Value] )
+			                , TREATAS({ "Number of Active Threads", "Number of Connected Clients" }, 'ServerStats'[Indicator] )
+			                , FILTER('ServerStats', 'ServerStats'[DateTime] = MAX('ServerStats'[DateTime]))
+			    )
+			```
+		displayFolder: Server Stats
+		lineageTag: 86fc3f1b-03dc-4f7f-a725-1e33952e2493
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure ProcessLevelFormatting = ```
+			
+			        IF (
+			                NOT ISBLANK(SELECTEDVALUE('Tree:Processes:Target<Source'[ProcLevel_0]))
+			                || NOT ISBLANK(SELECTEDVALUE('Tree:Processes:Target<Source'[ProcLevel_1]))
+			                || NOT ISBLANK(SELECTEDVALUE('Tree:Processes:Target<Source'[ProcLevel_2]))
+			                || NOT ISBLANK(SELECTEDVALUE('Tree:Processes:Target<Source'[ProcLevel_3]))
+			                || NOT ISBLANK(SELECTEDVALUE('Tree:Processes:Target<Source'[ProcLevel_4]))
+			                || NOT ISBLANK(SELECTEDVALUE('Tree:Processes:Target<Source'[ProcLevel_5]))
+			                || NOT ISBLANK(SELECTEDVALUE('Tree:Processes:Target<Source'[ProcLevel_6]))
+			                || NOT ISBLANK(SELECTEDVALUE('Tree:Processes:Target<Source'[ProcLevel_7]))
+			                || NOT ISBLANK(SELECTEDVALUE('Tree:Processes:Target<Source'[ProcLevel_8]))
+			                || NOT ISBLANK(SELECTEDVALUE('Tree:Processes:Target<Source'[ProcLevel_9]))
+			                || NOT ISBLANK(SELECTEDVALUE('Tree:Processes:Target<Source'[ProcLevel_10]))
+			        , 1, 2)
+			```
+		isHidden
+		displayFolder: Maps
+		lineageTag: 5bc9ab50-0a18-4a27-b1d9-6e7268609a6b
+
+		changedProperty = IsHidden
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure IsDimensionElementsFiltered = ```
+			
+			        ISFILTERED('DimensionElements'[Dimension])
+			```
+		displayFolder: Selected Metadata
+		lineageTag: 96835932-80bc-48d7-8824-9e0248b9a2d2
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure Skipcheck = ```
+			
+			    VAR _value = SELECTEDVALUE('PerformanceStats'[SKIPCHECK])
+			    VAR _return = 
+			    SWITCH(SELECTEDVALUE(ValueToggle[Metric])
+			        , "Numbers", _value
+			        , "Markers", VAR _status = IF(_value , 0, 3) RETURN LOOKUPVALUE('SysStatusNo'[Symbol], 'SysStatusNo'[No], _status)
+			        , _value
+			    )
+			    RETURN 
+			        IF( [RuleExists], _return, BLANK() )
+			```
+		displayFolder: Performance Stats
+		lineageTag: 4ed385fe-b139-486e-8ddf-3d0b193568ca
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure Feeders = ```
+			
+			    VAR _value = SELECTEDVALUE('PerformanceStats'[FEEDERS])
+			    VAR _return = 
+			    SWITCH(SELECTEDVALUE(ValueToggle[Metric])
+			        , "Numbers", _value
+			        , "Markers", VAR _status = IF(_value , 0, 3) RETURN LOOKUPVALUE('SysStatusNo'[Symbol], 'SysStatusNo'[No], _status)
+			        , _value
+			    )
+			    RETURN 
+			        IF( [RuleExists], _return, BLANK() )
+			```
+		displayFolder: Performance Stats
+		lineageTag: 993d488b-4c94-492a-9e7e-df3f5ba1ee8b
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Nested IFs' = ```
+			
+			    VAR _value = SELECTEDVALUE('PerformanceStats'[Nested IFs])
+			    VAR _return = 
+			    SWITCH(SELECTEDVALUE(ValueToggle[Metric])
+			        , "Numbers", _value
+			        , "Markers", 
+			                    VAR _ratio = DIVIDE(_value, SELECTEDVALUE('PerformanceStats'[IFs]), 0)
+			                        VAR _status = 
+			                            SWITCH(
+			                                TRUE()
+			                                , _ratio > 0.5, 2
+			                                , _ratio > 0, 1
+			                                , 3
+			                            )
+			                    RETURN LOOKUPVALUE('SysStatusNo'[Symbol], 'SysStatusNo'[No], _status)
+			        , _value
+			    )
+			    RETURN 
+			        IF( [RuleExists], _return, BLANK() )
+			```
+		formatString: 0
+		displayFolder: Performance Stats
+		lineageTag: da71ac31-733e-43f8-a738-0e8061f63320
+
+		changedProperty = FormatString
+
+	measure 'Сondit. Feeders' = ```
+			
+			    VAR _value = SELECTEDVALUE('PerformanceStats'[Сonditional Feeders])
+			    VAR _return = 
+			    SWITCH(SELECTEDVALUE(ValueToggle[Metric])
+			        , "Numbers", _value
+			        , "Markers", VAR _status = IF(_value = 0, 3, 1) RETURN LOOKUPVALUE('SysStatusNo'[Symbol], 'SysStatusNo'[No], _status)
+			        , _value
+			    )
+			    RETURN 
+			        IF( [RuleExists], _return, BLANK() )
+			```
+		formatString: 0
+		displayFolder: Performance Stats
+		lineageTag: 1f2a2e74-c10d-4b6e-892b-ae1f29bd4059
+
+		changedProperty = FormatString
+
+	measure 'Populated Cells' = ```
+			
+			    CALCULATE( SUM( 'CubeStats'[Value] )
+			                        , TREATAS({ "Number of Populated String Cells", "Number of Populated Numeric Cells" }, 'CubeStats'[Indicator] )
+			                        , FILTER('CubeStats', 'CubeStats'[DateTime] = MAX('CubeStats'[DateTime]))
+			            )
+			```
+		displayFolder: Cube Stats
+		lineageTag: 16b71215-df93-48e3-8803-b198fc29c1c6
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Fed Cells' = ```
+			
+			    CALCULATE( SUM( 'CubeStats'[Value] )
+			                        , TREATAS({ "Number of Fed Cells" }, 'CubeStats'[Indicator] )
+			                        , FILTER('CubeStats', 'CubeStats'[DateTime] = MAX('CubeStats'[DateTime]))
+			            )
+			```
+		displayFolder: Cube Stats
+		lineageTag: 4a1cad06-dad9-4d06-a5d2-d9ec1371f7b9
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure Overfeed = ```
+			
+			    VAR _value = IF ([Populated Cells] > 0, DIVIDE([Fed Cells], [Populated Cells], 0), [Fed Cells])
+			    VAR _return = 
+			    SWITCH(SELECTEDVALUE(ValueToggle[Metric])
+			        , "Numbers", _value
+			        , "Markers", 
+			                VAR _status = 
+			                    SWITCH(
+			                        TRUE()
+			                        , _value > 100, 2
+			                        , _value > 50, 1 
+			                        , _value > 0, 0
+			                        , 3
+			                    )
+			                RETURN LOOKUPVALUE('SysStatusNo'[Symbol], 'SysStatusNo'[No], _status)
+			        , _value
+			    )
+			    RETURN 
+			        IF( [RuleExists], _return, BLANK() )
+			```
+		formatString: #,0
+		displayFolder: Performance Stats
+		lineageTag: 00b85cd6-5003-4f7b-a7b2-1ea63a6dcc68
+
+		changedProperty = FormatString
+
+	measure IFs = IF( [RuleExists], SELECTEDVALUE('PerformanceStats'[IFs]), BLANK() )
+		displayFolder: Performance Stats
+		lineageTag: 78f9654d-123a-4c43-9dfc-29b21a0fa866
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure RuleExists = ```
+			
+			    NOT ISBLANK(SELECTEDVALUE('PerformanceStats'[Rule]))
+			```
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		displayFolder: Selected Metadata
+		lineageTag: 9ec46188-cfe4-4e8c-944f-32acd382f5e1
+
+	measure Dimensions = ```
+			
+			    VAR Result = COUNTROWS(DISTINCT(VALUES('Dimensions'[Dimension])))
+			    RETURN
+			        IF (ISBLANK(Result), 0, Result)
+			```
+		displayFolder: Cube Info
+		lineageTag: eb479d22-f6e0-40d8-8692-a4eeb0a3d9c7
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure Dimensionality = IF( [RuleExists], COUNTROWS('CubeDimensions'), BLANK())
+		displayFolder: Performance Stats
+		lineageTag: 61ca090c-2454-4045-934f-88e283f27b31
+
+		changedProperty = FormatString
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure Dense = ```
+			
+			    VAR Amount = DIVIDE([Cells], [Populated Cells], 0)
+			    RETURN
+			        Amount
+			```
+		displayFolder: Cube Info
+		lineageTag: 6d5d36ac-1815-42b2-a40d-734dd0d36e05
+
+		formatStringDefinition =
+				VAR _base = 1000
+				VAR _value = IF (SELECTEDMEASURE() > 0, SELECTEDMEASURE(), 1)
+				VAR _ordinal = TRUNC(LOG(_value, _base))
+				VAR _format = LOOKUPVALUE(Units[Decimal formatting], Units[Ordinal], _ordinal)
+				RETURN
+				    IF (_value = 1, "0", "1 / " & _format)
+
+		changedProperty = FormatString
+
+	measure Cells = ```
+			
+			    VAR Amount = 
+			    IF( [IsCubeSelected]
+			        , PRODUCTX(
+			                    SUMMARIZE(    ALL(DimensionElements[Dimension])
+			                                , DimensionElements[Dimension]
+			                                , "ElementsCount", COUNTROWS(DimensionElements)
+			                    ), 
+			                    [ElementsCount]
+			        )
+			        , 0
+			    )
+			
+			    RETURN
+			        IF (ISBLANK(Amount), 0, Amount)
+			```
+		displayFolder: Cube Info
+		lineageTag: 932b3137-59a2-4b0d-82cf-ac642d499531
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Feeders: Source > Target' = ```
+			
+			    VAR ItrLevel = [HierarchyBrowseDepth]
+			    VAR LevelItem = PATHITEM(MIN('Tree:Feeders:Source>Target'[HierarchyPath]), ItrLevel)
+			
+			    VAR NextLevelCount = 
+			        SWITCH( ItrLevel
+			                , 1, DISTINCTCOUNTNOBLANK('Tree:Feeders:Source>Target'[CubeLevel_1])
+			                , 2, DISTINCTCOUNTNOBLANK('Tree:Feeders:Source>Target'[CubeLevel_2])
+			                , 3, DISTINCTCOUNTNOBLANK('Tree:Feeders:Source>Target'[CubeLevel_3])
+			                , 4, DISTINCTCOUNTNOBLANK('Tree:Feeders:Source>Target'[CubeLevel_4])
+			                , 5, DISTINCTCOUNTNOBLANK('Tree:Feeders:Source>Target'[CubeLevel_5])
+			                , 6, DISTINCTCOUNTNOBLANK('Tree:Feeders:Source>Target'[CubeLevel_6])
+			                , 7, DISTINCTCOUNTNOBLANK('Tree:Feeders:Source>Target'[CubeLevel_7])
+			                , 8, DISTINCTCOUNTNOBLANK('Tree:Feeders:Source>Target'[CubeLevel_8])
+			                , 9, DISTINCTCOUNTNOBLANK('Tree:Feeders:Source>Target'[CubeLevel_9])
+			                , 10, DISTINCTCOUNTNOBLANK('Tree:Feeders:Source>Target'[CubeLevel_10])
+			                , 11, 0
+			        ) + 0
+			
+			    RETURN
+			            IF (ISBLANK(LevelItem) || LevelItem = "", BLANK(), NextLevelCount)
+			```
+		displayFolder: Maps\Tree:Feeders:Source>Target
+		lineageTag: fd342f9d-9551-42eb-b7ad-38e38260d353
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Direct. Feeders' = ```
+			
+			    VAR _value = SELECTEDVALUE('PerformanceStats'[Directional Feeders])
+			    VAR _return = 
+			    SWITCH(SELECTEDVALUE(ValueToggle[Metric])
+			        , "Numbers", _value
+			        , "Markers", VAR _status = IF(_value = 0, 3, 1) RETURN LOOKUPVALUE('SysStatusNo'[Symbol], 'SysStatusNo'[No], _status)
+			        , _value
+			    )
+			    RETURN 
+			        IF( [RuleExists], _return, BLANK() )
+			
+			```
+		formatString: 0
+		displayFolder: Performance Stats
+		lineageTag: 8f7fcadc-a212-4792-b345-4c4d72ec5e51
+
+		changedProperty = FormatString
+
+	measure 'Model Elapsed Time' = ```
+			
+			    FORMAT(
+			        CALCULATE( SELECTEDVALUE( 'ModelElapsedTime'[Time] ) 
+			                , FILTER('ModelElapsedTime', 'ModelElapsedTime'[TimeStamp] = MAX('ModelElapsedTime'[TimeStamp]))
+			        )
+			    , "hh:nn:ss")
+			```
+		displayFolder: Server Stats
+		lineageTag: da60d02f-b4ce-4ce3-abde-ec521c4f25c0
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Cubes: Target<Source: Max Path Length' = MAX('Tree:Rules:Target<Source'[PathLength]) - [HierarchyBrowseDepth]
+		formatString: 0
+		displayFolder: Maps\Tree:Rules\Target<Source
+		lineageTag: 6dd60a1f-3a35-4791-81c2-4daae6958c38
+
+	measure 'Target Cube' = ```
+			
+			    VAR ItrLevel = SELECTEDVALUE('Tree:Rules:Details'[CubeLevel_]) + 1
+			    VAR LevelItem = 
+			        IF([HierarchyBrowseDepth] < ItrLevel || ISBLANK([Source Cube])
+			        , BLANK()
+			        , CALCULATE(
+			            PATHITEM(MINX('Tree:Rules:Target<Source', 'Tree:Rules:Target<Source'[HierarchyPath]), ItrLevel)
+			            , FILTER('Tree:Rules:Target<Source', 'Tree:Rules:Target<Source'[PathLength] = MAXX('Tree:Rules:Target<Source', 'Tree:Rules:Target<Source'[PathLength]))
+			            )
+			        )
+			    RETURN 
+			        LevelItem
+			```
+		displayFolder: Maps\Tree:Rules\Target<Source
+		lineageTag: 1d5ae2d5-df07-41ef-9f2a-a73cc67a8e21
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Source Cube' = ```
+			
+			    VAR ItrLevel = SELECTEDVALUE('Tree:Rules:Details'[CubeLevel_]) + 1
+			    VAR LevelItem = 
+			        IF([HierarchyBrowseDepth] < ItrLevel
+			        , BLANK()
+			        , CALCULATE(
+			            PATHITEM(MINX('Tree:Rules:Target<Source', 'Tree:Rules:Target<Source'[HierarchyPath]), ItrLevel + 1)
+			            , FILTER('Tree:Rules:Target<Source', 'Tree:Rules:Target<Source'[PathLength] = MAXX('Tree:Rules:Target<Source', 'Tree:Rules:Target<Source'[PathLength]))
+			        )
+			        )    
+			    RETURN 
+			        LevelItem
+			```
+		displayFolder: Maps\Tree:Rules\Target<Source
+		lineageTag: 62563def-24d1-43f3-9c1f-4000542247fe
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Target Area Definition' = ```
+			
+			    VAR ItrLevel = SELECTEDVALUE('Tree:Rules:Details'[CubeLevel_]) + 1
+			    VAR LevelItem = [Source Cube]
+			
+			    VAR Definition = 
+			        CALCULATE(
+			            SWITCH( SELECTEDVALUE('Tree:Rules:Details'[CubeLevel_])
+			                , 0, SELECTEDVALUE('Tree:Rules:Target<Source'[CubeLevel_1: Area definition])
+			                , 1, SELECTEDVALUE('Tree:Rules:Target<Source'[CubeLevel_2: Area definition])
+			                , 2, SELECTEDVALUE('Tree:Rules:Target<Source'[CubeLevel_3: Area definition])
+			                , 3, SELECTEDVALUE('Tree:Rules:Target<Source'[CubeLevel_4: Area definition])
+			                , 4, SELECTEDVALUE('Tree:Rules:Target<Source'[CubeLevel_5: Area definition])
+			                , 5, SELECTEDVALUE('Tree:Rules:Target<Source'[CubeLevel_6: Area definition])
+			                , 6, SELECTEDVALUE('Tree:Rules:Target<Source'[CubeLevel_7: Area definition])
+			                , 7, SELECTEDVALUE('Tree:Rules:Target<Source'[CubeLevel_8: Area definition])
+			                , 8, SELECTEDVALUE('Tree:Rules:Target<Source'[CubeLevel_9: Area definition])
+			                , 9, SELECTEDVALUE('Tree:Rules:Target<Source'[CubeLevel_10: Area definition])
+			                , 10, "[...]"
+			            ), PATHITEM('Tree:Rules:Target<Source'[HierarchyPath], ItrLevel + 1) = LevelItem 
+			        )
+			
+			    RETURN
+			            IF (ISBLANK(LevelItem) || LevelItem = "", BLANK(), Definition)
+			```
+		displayFolder: Maps\Tree:Rules\Target<Source
+		lineageTag: 81f1d1ff-c8bd-4580-ba24-5f61c462bf23
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Lineage Path Length' = ```
+			
+			    VAR SourceCube = SELECTEDVALUE(CrossCubes[Cube])
+			    // filter all the Hierarchy Paths containing the target cube
+			    VAR Paths = FILTER(
+			        ALL('Tree:Rules:Target<Source')
+			        , 'Tree:Rules:Target<Source'[CubeLevel_0] = SELECTEDVALUE(Cubes[Cube]) &&  PATHCONTAINS('Tree:Rules:Target<Source'[HierarchyPath], SourceCube)
+			    )    
+			    // search for the nearest level
+			    VAR LineagePathLength = 
+					SWITCH (
+							TRUE (),
+								CONTAINS(Paths, [CubeLevel_1], SourceCube), 1,
+								CONTAINS(Paths, [CubeLevel_2], SourceCube), 2,
+								CONTAINS(Paths, [CubeLevel_3], SourceCube), 3,
+								CONTAINS(Paths, [CubeLevel_4], SourceCube), 4,
+								CONTAINS(Paths, [CubeLevel_5], SourceCube), 5,
+								CONTAINS(Paths, [CubeLevel_6], SourceCube), 6,
+								CONTAINS(Paths, [CubeLevel_7], SourceCube), 7,
+								CONTAINS(Paths, [CubeLevel_8], SourceCube), 8,
+								CONTAINS(Paths, [CubeLevel_9], SourceCube), 9,
+								CONTAINS(Paths, [CubeLevel_10], SourceCube), 10,
+								IF ([IsSuppressZerosEnabled], BLANK(), 11)
+					)
+				RETURN
+					IF([IsCubeExplicitlySelected], LineagePathLength, BLANK())
+			```
+		displayFolder: Matrix
+		lineageTag: 0ba648da-b464-41b3-bc7e-5e0efa5e310f
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure IsCubeExplicitlySelected = COUNTROWS(ALLSELECTED(Cubes)) <  COUNTROWS(ALL(Cubes))
+		displayFolder: Selected Metadata
+		lineageTag: 803fecb0-2694-495c-967e-14e20d34dbdf
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Lineage Path Length With Total' = ```
+			
+			    IF (
+			        ISINSCOPE('Cubes'[Cube]),
+			        [Lineage Path Length],
+			        COUNTX(
+			            VALUES('Cubes'[Cube]),
+			            [Lineage Path Length]
+			        )
+			    )
+			```
+		formatString: 0
+		displayFolder: Matrix
+		lineageTag: f55bb1e8-2d4e-4609-accb-482f3c98cc0d
+
+	measure IsSuppressZerosEnabled = ```
+			
+			    ISFILTERED(Checkboxes) && CONTAINSROW(ALLSELECTED(Checkboxes[Value]), {[cSuppressZeros]})
+			```
+		displayFolder: Selected Metadata
+		lineageTag: b141b130-d588-4fdb-83d4-58225bbea7a3
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Process Operation' = ```
+			
+			     IF (ISINSCOPE('CubeProcessesRelation'[Process]),
+			        IF ( COUNTAX(FILTER('CubeProcessesRelation', CubeProcessesRelation[OperationType] = "WRITE"), CubeProcessesRelation[OperationType]) > 0
+			                , 2
+			                , IF ( COUNTAX(FILTER('CubeProcessesRelation', CubeProcessesRelation[OperationType] = "READ"), CubeProcessesRelation[OperationType]) > 0
+			                    , 1
+			                )
+			        )
+			    )
+			```
+		displayFolder: Maps\Tree:Processes:Target<Source
+		lineageTag: 58808ae9-e687-4d2a-9681-40100e68222b
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'FPL Cumulative sDuration' = ```
+			
+			    CALCULATE(
+			        SUM(FeedersProcessingLastRun[msDuration])
+			        , TOPN(SELECTEDVALUE(FeedersProcessingLastRun[Rank]), ALLSELECTED('FeedersProcessingLastRun'), FeedersProcessingLastRun[msDuration], DESC, 'FeedersProcessingLastRun'[Cube], ASC)
+			    ) / 1000
+			```
+		displayFolder: Feeders Stats
+		lineageTag: 6d6f8a41-334d-4459-9fb5-f510e943cc0c
+
+		formatStringDefinition =
+				VAR _value = SELECTEDMEASURE()
+				VAR _ordinal =
+				    SWITCH (
+				        TRUE ()
+				        , _value <= 60 - 1, 0
+				        , _value <= 60 * 60 - 1, 1
+				        , 2
+				    )
+				VAR _format = LOOKUPVALUE(Units[Time formatting], Units[Ordinal], _ordinal)
+				RETURN
+				    """" & FORMAT(_value / (24 * 60 * 60), _format) & """"
+
+	measure 'FPL Cumulative Duration %' = ```
+			
+			    [FPL Cumulative sDuration] / CALCULATE([FPL sDuration], ALLSELECTED(FeedersProcessingLastRun))
+			```
+		displayFolder: Feeders Stats
+		lineageTag: f4a536f5-953c-41d0-9ca9-04665489da2a
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'FPL Cutoff Cube' = ```
+			
+			    VAR TargetPercentage = [Pareto Value]
+			    VAR ClosestCube = 
+			        TOPN(
+			            1 
+			            , ADDCOLUMNS(
+			                ALLSELECTED('FeedersProcessingLastRun'[Cube])
+			                , "Cumulative Duration %", [FPL Cumulative Duration %]
+			                , "Difference", ABS([FPL Cumulative Duration %] - TargetPercentage)
+			            )
+			            , [Difference], ASC
+			        )
+			RETURN
+			    MAXX(
+			        ClosestCube
+			        , 'FeedersProcessingLastRun'[Cube]
+			    )
+			                
+			
+			```
+		displayFolder: Feeders Stats
+		lineageTag: be740c49-9944-45c1-a31c-ca336ab98000
+
+	measure 'FPL Cutoff Rank' = ```
+			
+			    LOOKUPVALUE('FeedersProcessingLastRun'[Rank], FeedersProcessingLastRun[Cube], [FPL Cutoff Cube])
+			```
+		formatString: 0
+		displayFolder: Feeders Stats
+		lineageTag: 223c49df-6566-46b3-9db3-43f3a8c2b6d1
+
+	measure 'FPL Cuttoff Color' = ```
+			
+			    IF(SELECTEDVALUE('FeedersProcessingLastRun'[Rank]) > [FPL Cutoff Rank], "#E6E6E6", "#9DC7EF")
+			```
+		displayFolder: Feeders Stats
+		lineageTag: 348ffe13-6cf8-4b15-abab-184d0bf1682e
+
+	measure 'FPL sDuration' = ```
+			
+			    SUM('FeedersProcessingLastRun'[msDuration]) / 1000 
+			```
+		displayFolder: Feeders Stats
+		lineageTag: 834518b7-d8b6-4b75-a06f-d6f6a4f39b92
+
+		formatStringDefinition =
+				VAR _value = SELECTEDMEASURE()
+				VAR _ordinal =
+				    SWITCH (
+				        TRUE ()
+				        , _value <= 60 - 1, 0
+				        , _value <= 60 * 60 - 1, 1
+				        , 2
+				    )
+				VAR _format = LOOKUPVALUE(Units[Time formatting], Units[Ordinal], _ordinal)
+				RETURN
+				    """" & FORMAT(_value / (24 * 60 * 60), _format) & """"
+
+	measure 'FPL Cutoff Cumulative sDuration' = ```
+			
+			    IF(SELECTEDVALUE('FeedersProcessingLastRun'[Cube]) = [FPL Cutoff Cube], [FPL Cumulative sDuration], BLANK())
+			```
+		displayFolder: Feeders Stats
+		lineageTag: 054e8d7f-f7f8-4874-aae9-df222b47a776
+
+		formatStringDefinition =
+				VAR _value = SELECTEDMEASURE()
+				VAR _ordinal =
+				    SWITCH (
+				        TRUE ()
+				        , _value <= 60 - 1, 0
+				        , _value <= 60 * 60 - 1, 1
+				        , 2
+				    )
+				VAR _format = LOOKUPVALUE(Units[Time formatting], Units[Ordinal], _ordinal)
+				RETURN
+				    """" & FORMAT(_value / (24 * 60 * 60), _format) & """"
+
+	measure 'FPL Cutoff Cumulative Duration %' = ```
+			
+			    IF(SELECTEDVALUE('FeedersProcessingLastRun'[Cube]) = [FPL Cutoff Cube], [FPL Cumulative Duration %], BLANK())
+			```
+		formatString: 0.0%;-0.0%;0.0%
+		displayFolder: Feeders Stats
+		lineageTag: 64a4d0bd-bb69-4aac-baad-ae7630264f39
+
+	measure 'FPL Cutoff Cumulative sDuration (Data label)' =
+			
+			// Workaround measure: Dynamics measure formatting doesn't work for visual datalables
+			VAR _value = [FPL Cutoff Cumulative sDuration]
+			VAR _ordinal =
+			    SWITCH (
+			        TRUE ()
+			        , _value <= 60 - 1, 0
+			        , _value <= 60 * 60 - 1, 1
+			        , 2
+			    )
+			VAR _format = LOOKUPVALUE(Units[Time formatting], Units[Ordinal], _ordinal)
+			RETURN
+			    FORMAT(_value / (24 * 60 * 60), _format)
+		displayFolder: Feeders Stats
+		lineageTag: 5b48693d-2125-4bcd-81c1-25e507e60f84
+
+	measure 'FP sDuration' = ```
+			
+			    VAR SelectedCube = [FP Selected Cube]
+			RETURN
+			    MAXX(
+			        FILTER('FeedersProcessing', 'FeedersProcessing'[Cube] = SelectedCube)
+			        , 'FeedersProcessing'[msDuration] / 1000
+			    )
+			```
+		displayFolder: Feeders Stats
+		lineageTag: 31fe589d-cdbc-4b28-bda6-0a19de565166
+
+		formatStringDefinition =
+				VAR _value = SELECTEDMEASURE()
+				VAR _ordinal =
+				    SWITCH (
+				        TRUE ()
+				        , _value <= 60 - 1, 0
+				        , _value <= 60 * 60 - 1, 1
+				        , 2
+				    )
+				VAR _format = LOOKUPVALUE(Units[Time formatting], Units[Ordinal], _ordinal)
+				RETURN
+				    """" & FORMAT(_value / (24 * 60 * 60), _format) & """"
+
+	measure 'FP Selected Cube' = SELECTEDVALUE(Cubes[Cube], [FPL Cutoff Cube])
+		displayFolder: Feeders Stats
+		lineageTag: 58d23488-0f7c-4f27-b190-5884d913713a
+
+	measure 'Max Request Count' = ```
+			
+			    VAR _count = CALCULATE(
+			        MAX('UserStats'[Value])
+			        , 'UserStats', 'UserStats'[Indicator] = "Request Count"
+			    )
+			    RETURN 
+			        IF(ISBLANK(_count), 0, _count)
+			```
+		formatString: 0
+		displayFolder: User Stats
+		lineageTag: ff2587a4-8e05-4f02-bd3f-961374d7bbf7
+
+	measure 'User Max Intensive Querying' = ```
+			
+			    CALCULATE(
+			        [Max Request Count]
+			        , ALLEXCEPT(UserStats, Users[UserName], UserStats[User])
+			    )
+			```
+		displayFolder: User Stats
+		lineageTag: da0221da-b084-4a13-b53f-5ef757d13a89
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'User Bar Scale' = ```
+			
+			    MROUND([User Quering Intensity Ratio], DIVIDE(1, [User Bar Capacity])) * [User Bar Capacity]
+			```
+		formatString: 0
+		displayFolder: User Stats
+		lineageTag: aef82d4a-f7fd-4cef-b13b-f58ea72261a1
+
+	measure 'Max Intensive Querying' = ```
+			
+			    CALCULATE(
+			        [Max Request Count]
+			        , ALL(UserStats)
+			    )
+			```
+		formatString: 0
+		displayFolder: User Stats
+		lineageTag: ef118895-9da9-4b8d-a298-5b02d9816de6
+
+	measure 'User Bar Capacity' = ```
+			
+			    IF([User Quering Intensity Ratio] > 0, [User Max Intensive Querying] / [Max Intensive Querying] * [Max Bar capacity], 0)
+			```
+		displayFolder: User Stats
+		lineageTag: b9b1439b-13c0-4a8a-ab99-f1c07e29d83c
+
+		formatStringDefinition =
+				VAR _scale = IF([User Bar Scale] - 1 > 0,  [User Bar Scale] - 1, 0)
+				RETURN REPT(UNICHAR( 9188 ), _scale) & IF ([User Quering Intensity Ratio] > 0, UNICHAR( 9679 ), " ")
+
+	measure 'Max Bar capacity' = 4
+		formatString: 0
+		displayFolder: User Stats
+		lineageTag: 22065416-0eba-46bb-93ca-4325533eaf0a
+
+	column Dummy
+		dataType: string
+		isHidden
+		lineageTag: 54d29cd3-93ba-4a1a-a447-9deaa2b89694
+		summarizeBy: none
+		sourceColumn: Dummy
+
+		changedProperty = IsHidden
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'Amount measures-4fcd014e-c56a-4c19-8de1-539e24397633' = m
+		mode: import
+		queryGroup: Data\Measures
+		source =
+				let
+				    Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText("i44FAA==", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type nullable text) meta [Serialized.Text = true]) in type table [Dummy = _t]),
+				    #"Changed Type" = Table.TransformColumnTypes(Source,{{"Dummy", type text}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_ResultType = Table
+

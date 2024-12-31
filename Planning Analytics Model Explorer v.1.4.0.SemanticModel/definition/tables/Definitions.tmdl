@@ -1,0 +1,43 @@
+table Definitions
+	lineageTag: 15abe158-ea21-4f08-b941-4f6d28dc4819
+
+	measure cOthers = "*Others"
+		lineageTag: ec2a9cbc-971d-4343-be6a-7aed8121d04f
+
+	measure cTitleMemoryChart01 = "Current size of " & SELECTEDVALUE(MemoryMetrics[Name]) & " in memory"
+		lineageTag: 7851e4e9-48ec-4900-b72f-4a4f509eed10
+
+	measure cTitleMemoryChart02 = "Historical size of " & SELECTEDVALUE(MemoryMetrics[Name]) & " in memory"
+		lineageTag: 9f478faa-95fd-4e0a-b663-65ab5112a8f2
+
+	measure cSuppressZeros = "Suppress zeros"
+		lineageTag: 16d68f43-f145-421b-aa93-0943761dca2e
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure cTitleFeedersChart02 = "Historical duration of """ & [FP Selected Cube] & """ feeders processing ( mins )"
+		lineageTag: 76ae1b2f-c038-4737-9b67-fb7c84120ec4
+
+	column Dummy
+		dataType: string
+		isHidden
+		lineageTag: 7c1b3fea-ca9e-49d0-987e-5c04eaa06bdc
+		summarizeBy: none
+		sourceColumn: Dummy
+
+		changedProperty = IsHidden
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Definitions-3e6efe1f-460c-42f0-a29a-d8b0f3bc8915 = m
+		mode: import
+		queryGroup: Data\Measures
+		source =
+				let
+				    Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText("i44FAA==", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type nullable text) meta [Serialized.Text = true]) in type table [Dummy = _t]),
+				    #"Changed Type" = Table.TransformColumnTypes(Source,{{"Dummy", type text}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_ResultType = Table
+

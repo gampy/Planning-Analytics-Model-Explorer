@@ -1,0 +1,95 @@
+table TransactionLogDimensions
+	lineageTag: 9b2e0921-681c-40c7-baed-3e895324c407
+
+	column RecordNo
+		dataType: double
+		lineageTag: a887702b-ed0d-4039-83f6-8a546c62ebc5
+		summarizeBy: none
+		sourceColumn: RecordNo
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column ElementKey
+		dataType: string
+		lineageTag: 09a8a582-2f4e-468e-a2f7-50ab375c6142
+		summarizeBy: none
+		sourceColumn: ElementKey
+
+		annotation SummarizationSetBy = Automatic
+
+	column Cube
+		dataType: string
+		lineageTag: 39b8318b-377b-4e31-8788-d113149f2907
+		summarizeBy: none
+		sourceColumn: Cube
+
+		annotation SummarizationSetBy = Automatic
+
+	column Dimension
+		dataType: string
+		lineageTag: 3962a331-2a84-42da-9fc3-0ed85b30e03b
+		summarizeBy: none
+		sourceColumn: Dimension
+
+		annotation SummarizationSetBy = Automatic
+
+	column Element
+		dataType: string
+		lineageTag: 116bba57-c9d3-4b77-9764-3108397dbce8
+		summarizeBy: none
+		sourceColumn: Element
+
+		annotation SummarizationSetBy = Automatic
+
+	partition TransactionLogDimensions-608e6cad-cf71-413a-8032-d899b5db0466 = m
+		mode: import
+		queryGroup: Data\UserData
+		source = ```
+				// Copyright © Alex Zaitsev
+				
+				let
+				    TransactionLogTuples = Source_TransactionLog[[RecordNo], [Cube], [Tuple]],
+				
+				    Dimensions = 
+				        if Table.RowCount(CubeDimensions) > 0
+				        then
+				            let
+				                CubeDimensionList = Table.Group(CubeDimensions, {"Cube"}, {{"Dimension", each List.Combine( {[Dimension]} ) }}),
+				
+				                JointTable = Table.NestedJoin(
+				                                TransactionLogTuples
+				                                , "Cube"
+				                                , CubeDimensionList
+				                                , "Cube"
+				                                , "CubeDimensions"
+				                                , JoinKind.LeftOuter
+				                ),
+				                ExpandCubeDimensions = Table.ExpandTableColumn(JointTable, "CubeDimensions", {"Dimension"})
+				            in
+				                ExpandCubeDimensions
+				        else
+				                Table.AddColumn(TransactionLogTuples, "Dimension",  (row) =>
+				                                                            List.Generate(
+				                                                                () => [Counter = 1, Dims = SysName[DimTransactionLogName] & Text.From(Counter) ]
+				                                                                , each [Counter] <= List.Count(row[Tuple])
+				                                                                , each [Counter = [Counter] + 1, Dims = SysName[DimTransactionLogName] & Text.From(Counter) ]
+				                                                                , each [Dims]
+				                                                            )
+				                ),
+				    ExpandDimension = Table.ExpandListColumn(Dimensions, "Dimension"),
+				    ExpandTuple = Table.ExpandListColumn(Dimensions, "Tuple"),
+				    TableFromColumns = Table.FromColumns(
+				                                        {ExpandTuple[RecordNo], ExpandTuple[Cube], ExpandDimension[Dimension], ExpandTuple[Tuple] }
+				                                        , {"RecordNo", "Cube", "Dimension", "Element"}
+				                                    ),
+				    AddElementKey = Table.AddColumn(TableFromColumns, "ElementKey", each "[" & [Dimension] & "].[" & [Element] & "]")
+				in
+				    try AddElementKey otherwise SysNullTables[TransactionLogDimensions]
+				```
+
+	annotation PBI_ResultType = Exception
+
+	annotation PBI_NavigationStepName = Navigation
+

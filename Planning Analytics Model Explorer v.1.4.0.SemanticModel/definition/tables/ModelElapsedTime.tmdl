@@ -1,0 +1,56 @@
+table ModelElapsedTime
+	lineageTag: 8ddf7702-2e76-4fd9-8d92-6ced4bf94ee8
+
+	column TimeStamp
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 0bd73045-84f8-4a0d-8aa1-709fb546b3cb
+		summarizeBy: none
+		sourceColumn: TimeStamp
+
+		variation Variation
+			isDefault
+			relationship: 385333e0-64a3-4f9d-84e5-6dfd57febca7
+			defaultHierarchy: LocalDateTable_7d42e85f-721c-45bc-884d-f132081c47a6.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	column Time
+		dataType: dateTime
+		formatString: Long Time
+		lineageTag: 1b5bbdee-37d9-4dd1-91b1-9db9e7e93098
+		summarizeBy: none
+		sourceColumn: Time
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Time
+
+	partition ModelElapsedTime-9fdf6cf4-abb7-44ce-954f-170ad41f134c = m
+		mode: import
+		queryGroup: Data\UserData
+		source =
+				// Copyright © Alex Zaitsev
+				
+				let
+				    FeedersProcessingLog = Source_MessageLog[[TimeStamp], [Message]],
+				    MsgSelection = Table.SelectRows(FeedersProcessingLog, each Text.Contains( [Message], SysMessageLog[ElapsedTimeMsg] )),
+				    AddSeconds = Table.AddColumn(
+				        MsgSelection
+				        , "Seconds"
+				        , each try Number.FromText(Text.Trim(Text.BetweenDelimiters([Message], "TM1 Server is ready, elapsed time", "seconds")), "en-US") otherwise 0
+				        , Int64.Type
+				    ),
+				    AddTime = Table.AddColumn(
+				       AddSeconds
+				       , "Time"
+				       , each #time(0, 0, 0) + #duration(0, 0, 0, [Seconds])
+				       , type time
+				    )
+				in
+				    try AddTime[[TimeStamp], [Time]] otherwise SysNullTables[ModelElapsedTime]
+
+	annotation PBI_ResultType = Table
+
+	annotation PBI_NavigationStepName = Navigation
+

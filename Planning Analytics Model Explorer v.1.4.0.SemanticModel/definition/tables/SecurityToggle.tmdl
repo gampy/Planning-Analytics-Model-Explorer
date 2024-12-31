@@ -1,0 +1,32 @@
+table SecurityToggle
+	lineageTag: d288d9c2-7e4f-45fb-996f-6c4c5d042d2a
+
+	calculationGroup
+		precedence: 1
+
+		calculationItem 'Cubes by user' = SELECTEDMEASURE()
+
+			formatStringDefinition = SELECTEDMEASUREFORMATSTRING()
+
+		calculationItem 'Users by cube' = SELECTEDMEASURE()
+
+			formatStringDefinition = SELECTEDMEASUREFORMATSTRING()
+
+	column Name
+		dataType: string
+		lineageTag: cf592fc5-9fb1-4330-8cac-5d79aaca16bc
+		summarizeBy: none
+		sourceColumn: Name
+		sortByColumn: Ordinal
+
+		annotation SummarizationSetBy = Automatic
+
+	column Ordinal
+		dataType: int64
+		isHidden
+		lineageTag: b64ab99a-0a69-46f0-8b06-90519e7de506
+		summarizeBy: sum
+		sourceColumn: Ordinal
+
+		annotation SummarizationSetBy = Automatic
+

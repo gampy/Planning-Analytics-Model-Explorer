@@ -1,0 +1,77 @@
+table Units
+	lineageTag: 7a128f4e-7ba6-402d-ac79-77fecff0ecf8
+
+	column 'Decimal formatting'
+		dataType: string
+		lineageTag: c2061d7c-8b5d-4d39-b75f-219de89fcf77
+		summarizeBy: none
+		sourceColumn: Decimal formatting
+
+		annotation SummarizationSetBy = Automatic
+
+	column Ordinal
+		dataType: int64
+		formatString: 0
+		lineageTag: 2d6e0be5-7653-497e-898b-ee1fd29f9f4f
+		summarizeBy: sum
+		sourceColumn: Ordinal
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Size denominator'
+		dataType: int64
+		formatString: 0
+		lineageTag: 0813d146-0e85-476f-b758-d8388c6facaf
+		summarizeBy: sum
+		sourceColumn: Size denominator
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Size rounding'
+		dataType: int64
+		formatString: 0
+		lineageTag: 5f9906cb-c67b-4eb9-a34a-5dddb19aca55
+		summarizeBy: sum
+		sourceColumn: Size rounding
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Size unit'
+		dataType: string
+		lineageTag: 77b2b67f-4455-4f80-845d-c1a8a9f84465
+		summarizeBy: none
+		sourceColumn: Size unit
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Time formatting'
+		dataType: string
+		lineageTag: 62c1bb91-63e8-41e2-a67b-23914f6fab4b
+		summarizeBy: none
+		sourceColumn: Time formatting
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Units = m
+		mode: import
+		queryGroup: Data\UserData
+		source =
+				// Copyright © Alex Zaitsev
+				
+				let
+				    Source = #table(type table[Ordinal = Int64.Type, Decimal formatting = text, Size denominator = Int64.Type, Size rounding = Int64.Type, Size unit = text, Time formatting],
+				        {
+				            { 0, "#0",         Number.Power(1024, 0),  0, " b", "n:ss"     },
+				            { 1, "#0,.0 K",    Number.Power(1024, 1), 0, " Kb", "nn:ss"    },
+				            { 2, "#0,,.0 M",   Number.Power(1024, 2), 0, " Mb", "hh:nn:ss" },
+				            { 3, "#0,,,.0 B",  Number.Power(1024, 3), 1, " Gb", "hh:nn:ss" },
+				            { 4, "#0,,,,.0 T", Number.Power(1024, 4), 2, " Tb", "hh:nn:ss" }
+				        }
+				    )
+				in
+				    Source
+
+	annotation PBI_ResultType = Table
+
+	annotation PBI_NavigationStepName = Navigation
+

@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Report",
+    "displayName": "Planning Analytics Model Explorer v.1.4.0"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "73a88900-185a-4f2f-b447-82b4115e8f79"
+  }
+}

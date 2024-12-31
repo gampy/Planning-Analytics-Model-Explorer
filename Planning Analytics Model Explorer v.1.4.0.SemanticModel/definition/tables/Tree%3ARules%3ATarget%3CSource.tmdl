@@ -1,0 +1,238 @@
+table Tree:Rules:Target<Source
+	lineageTag: 27957008-12d7-40b2-82ab-630ead75862f
+
+	column CubeLevel_0
+		dataType: string
+		lineageTag: e2a86f1c-3084-4187-9ab5-d649c4ee1eb7
+		summarizeBy: none
+		sourceColumn: CubeLevel_0
+
+		annotation SummarizationSetBy = Automatic
+
+	column CubeLevel_1
+		dataType: string
+		lineageTag: f44cd1f6-433c-4ca6-83f9-9db6cf2743d1
+		summarizeBy: none
+		sourceColumn: CubeLevel_1
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'CubeLevel_1: Area definition'
+		dataType: string
+		lineageTag: cedd984b-b8b4-45c1-a93c-91a77b14a637
+		summarizeBy: none
+		sourceColumn: CubeLevel_1: Area definition
+
+		annotation SummarizationSetBy = Automatic
+
+	column HierarchyPath
+		dataType: string
+		lineageTag: 4f47bf4d-ca91-4ea4-86f0-83e0374bf198
+		summarizeBy: none
+		sourceColumn: HierarchyPath
+
+		annotation SummarizationSetBy = Automatic
+
+	column CubeLevel_2
+		dataType: string
+		lineageTag: 7d83b922-86fa-4b2c-a6a8-77f47bf95fb9
+		summarizeBy: none
+		sourceColumn: CubeLevel_2
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'CubeLevel_2: Area definition'
+		dataType: string
+		lineageTag: 22b91835-5916-4b19-a788-abf435d4885f
+		summarizeBy: none
+		sourceColumn: CubeLevel_2: Area definition
+
+		annotation SummarizationSetBy = Automatic
+
+	column CubeLevel_3
+		dataType: string
+		lineageTag: accffcfa-b219-4b30-9b6a-f3f7e8771baa
+		summarizeBy: none
+		sourceColumn: CubeLevel_3
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'CubeLevel_3: Area definition'
+		dataType: string
+		lineageTag: 1c413468-fce0-482f-809d-203850900164
+		summarizeBy: none
+		sourceColumn: CubeLevel_3: Area definition
+
+		annotation SummarizationSetBy = Automatic
+
+	column CubeLevel_4
+		dataType: string
+		lineageTag: 654021cc-cce7-431f-9961-7f0bc374f394
+		summarizeBy: none
+		sourceColumn: CubeLevel_4
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'CubeLevel_4: Area definition'
+		dataType: string
+		lineageTag: 819262ae-415f-4cc8-a0b7-02a81257879a
+		summarizeBy: none
+		sourceColumn: CubeLevel_4: Area definition
+
+		annotation SummarizationSetBy = Automatic
+
+	column CubeLevel_5
+		dataType: string
+		lineageTag: 95bc0093-7312-4a57-ab93-535c5323e987
+		summarizeBy: none
+		sourceColumn: CubeLevel_5
+
+		annotation SummarizationSetBy = Automatic
+
+	column CubeLevel_6
+		dataType: string
+		lineageTag: 66bab855-a1dc-4c93-b83c-ac26f8c3d693
+		summarizeBy: none
+		sourceColumn: CubeLevel_6
+
+		annotation SummarizationSetBy = Automatic
+
+	column CubeLevel_7
+		dataType: string
+		lineageTag: e8293bf9-5d97-4564-91ce-9084f0f0e76a
+		summarizeBy: none
+		sourceColumn: CubeLevel_7
+
+		annotation SummarizationSetBy = Automatic
+
+	column CubeLevel_8
+		dataType: string
+		lineageTag: 8a10a3ee-f7e5-41ab-b60f-b906d8ed88c6
+		summarizeBy: none
+		sourceColumn: CubeLevel_8
+
+		annotation SummarizationSetBy = Automatic
+
+	column CubeLevel_9
+		dataType: string
+		lineageTag: e72099f2-352c-4178-93b5-4ceb0406c01e
+		summarizeBy: none
+		sourceColumn: CubeLevel_9
+
+		annotation SummarizationSetBy = Automatic
+
+	column CubeLevel_10
+		dataType: string
+		lineageTag: b4eb9f2d-9254-43c2-bf64-6e22bdc34404
+		summarizeBy: none
+		sourceColumn: CubeLevel_10
+
+		annotation SummarizationSetBy = Automatic
+
+	column PathLength = PATHLENGTH('Tree:Rules:Target<Source'[HierarchyPath])
+		formatString: 0
+		lineageTag: bffc21cd-f4d3-433b-aab1-b076da1bc1e6
+		summarizeBy: sum
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'CubeLevel_5: Area definition'
+		dataType: string
+		lineageTag: 70693113-eb96-4f45-a92d-0893b0298433
+		summarizeBy: none
+		sourceColumn: CubeLevel_5: Area definition
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'CubeLevel_6: Area definition'
+		dataType: string
+		lineageTag: aa18b151-055c-4621-8d76-6100438b9d56
+		summarizeBy: none
+		sourceColumn: CubeLevel_6: Area definition
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'CubeLevel_7: Area definition'
+		dataType: string
+		lineageTag: d09de785-02c4-4512-8a33-3d6bd25da3d3
+		summarizeBy: none
+		sourceColumn: CubeLevel_7: Area definition
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'CubeLevel_8: Area definition'
+		dataType: string
+		lineageTag: 016f2315-4f22-407b-a752-7672f76399d4
+		summarizeBy: none
+		sourceColumn: CubeLevel_8: Area definition
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'CubeLevel_9: Area definition'
+		dataType: string
+		lineageTag: 97e51f72-2f16-4719-9cb3-a14f9579d406
+		summarizeBy: none
+		sourceColumn: CubeLevel_9: Area definition
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'CubeLevel_10: Area definition'
+		dataType: string
+		lineageTag: b3dd62c9-c478-4dfa-9b75-f1318a877068
+		summarizeBy: none
+		sourceColumn: CubeLevel_10: Area definition
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Tree:Rules:Target<Source-a2173619-6d82-4789-9896-da8df040da2a = m
+		mode: import
+		queryGroup: Data\UserData
+		source = ```
+				// Copyright © Alex Zaitsev
+				
+				let
+				    ExtractRulesOnly = Table.TransformColumns(Source_Rules, { "TextContent", ( text ) => Text.BeforeDelimiter(text, Text.Upper(KeyWords[FeederRef])) }),
+				    ParseTextContent = Table.AddColumn(
+				                    ExtractRulesOnly
+				                    , "Definitions"
+				                    , each 
+				                            let
+				                                TextToParse = _[TextContent] ,
+				                                Rows = Text.Split(TextToParse, ";"),
+				                                HasRelation = List.Select(Rows, each Text_ContainsAnyOf( _ , KeyWords[RuleCubeRef])),
+				                                // 0 - Area definition (left), 1 - Formula (right)
+				                                LeftRight = List.Transform(HasRelation, each if Text.Contains( _ , "=" ) then { Text.BeforeDelimiter( _ , "=", { 0, RelativePosition.FromStart }) } & { Text.AfterDelimiter( _ , "=", { 0, RelativePosition.FromStart }) } else null ),                           
+				                                RemoveNulls = List.Select(LeftRight, each _ <> null )
+				                            in
+				                                RemoveNulls
+				
+				    ),
+				 ExtractRelatedObjects = 
+				        Table.TransformColumns(
+				                                ParseTextContent,
+				                                { 
+				                                    "Definitions"
+				                                    , each
+				                                        let 
+				                                            RelatedObjects = List.Transform( _ , ( map ) => { map{0}} & { fn_extractFunctionEntries( map{1}, KeyWords[RuleCubeRef], {0, 1, 1, 1, 1, 2} )} ),
+				                                            MappingTables = List.Transform( RelatedObjects , ( map ) => Table.FromColumns( { map{1}, { map{0} } }, { "RelatedObjects", "AreaDefinition" }) ),
+				                                            RemoveEmptyRelatedObjects = List.Transform( MappingTables , ( table ) => Table.SelectRows( table, each [RelatedObjects] <> null and Text.Trim([RelatedObjects]) <> "")),
+				                                            AreaDefinitionFillDown = List.Transform( RemoveEmptyRelatedObjects , ( table ) => Table.FillDown( table, { "AreaDefinition" } )),
+				                                            RemoveDuplicates = List.Distinct(AreaDefinitionFillDown),
+				                                            ExpandMappingTable = Table.ExpandTableColumn(Table.FromList(RemoveDuplicates, Splitter.SplitByNothing(), {"Definitions"}, null, ExtraValues.Error), "Definitions", { "RelatedObjects", "AreaDefinition" }),
+				                                            MappingTablesGrouping = Table.Group(ExpandMappingTable, {"RelatedObjects"}, {{ SysName[CubeTreeAreaDefinition], each Text.Combine( [AreaDefinition] , "#(lf)") }})
+				                                        in
+				                                            MappingTablesGrouping
+				                                }
+				    ),                                        
+				
+				    MaxTreeDepth = fn_calcMaxTreeDepth(ExtractRelatedObjects[Definitions]),    
+				    ResultTable = try fn_createHierarchyPath(ExtractRelatedObjects[[Name], [Definitions]], "Name", "Definitions", SysName[CubeTreeNodeName], MaxTreeDepth, {"RelatedObjects", SysName[CubeTreeAreaDefinition]}) otherwise SysNullTables[#"Tree:Rules:Target<Source"]
+				in
+				    ResultTable
+				```
+
+	annotation PBI_ResultType = Table
+
+	annotation PBI_NavigationStepName = Navigation
+

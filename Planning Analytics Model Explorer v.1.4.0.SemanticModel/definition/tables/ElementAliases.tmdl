@@ -1,0 +1,114 @@
+table ElementAliases
+	lineageTag: e98314ee-fa39-4108-b0a0-71fafc3d6c36
+
+	column ElementKey
+		dataType: string
+		lineageTag: 5bc63322-1dd7-4372-b666-52d96c9f8308
+		summarizeBy: none
+		sourceColumn: ElementKey
+
+		annotation SummarizationSetBy = Automatic
+
+	column Dimension
+		dataType: string
+		lineageTag: 1d6bc6fe-e6a4-4179-b361-f9d45e0d41e2
+		summarizeBy: none
+		sourceColumn: Dimension
+
+		annotation SummarizationSetBy = Automatic
+
+	column Element
+		dataType: string
+		lineageTag: 957c249b-1e3f-4844-8dc9-69af6de16a9a
+		summarizeBy: none
+		sourceColumn: Element
+
+		annotation SummarizationSetBy = Automatic
+
+	column Alias
+		dataType: string
+		lineageTag: 642739e8-b552-448d-8996-5436548af551
+		summarizeBy: none
+		sourceColumn: Alias
+
+		annotation SummarizationSetBy = Automatic
+
+	column ElementAlias
+		dataType: string
+		lineageTag: 5c2555df-f9b4-4d35-bc08-e80196d4f6f5
+		summarizeBy: none
+		sourceColumn: ElementAlias
+
+		annotation SummarizationSetBy = Automatic
+
+	partition ElementAliases-2fad9378-bbfe-48b3-b22b-20bd4c422ded = m
+		mode: import
+		queryGroup: Data\UserData
+		source = ```
+				// Copyright © Alex Zaitsev
+				
+				let
+				     Source = 
+				            if (try ConnectionConfig[ConnectionType] otherwise "REST") = "REST" 
+				            then
+				                let
+				                    //Aliases in Dimensions
+				                    Aliases = Table.Distinct(Table.SelectRows(DimensionAttributes, each [AttributeType] = "Alias")[[Dimension], [Attribute]]),
+				                    AliasesList = Table.Group(Aliases, {"Dimension"}, {{"Attribute", each List.Combine( {[Attribute]} ) }}),
+				
+				                    //Aliases of Elements
+				                    Value = HttpRequests[DimensionElements][value],
+				                    ConvertToTable = Table.FromList(Value, Splitter.SplitByNothing(), {"RecordSet"}, null, ExtraValues.Ignore),
+				                    ExpandRecordSet = Table.ExpandRecordColumn(ConvertToTable, "RecordSet", {"Name", "Hierarchies"}, {"Dimension", "Hierarchies"}),
+				                    NameSelection = Table.SelectRows(ExpandRecordSet, each 
+				                                                                    let 
+				                                                                        Dim = [Dimension], 
+				                                                                        NameFilter = List.MatchesAny( Dimensions[Dimension], each _ = Text.From ( Dim ))
+				                                                                    in 
+				                                                                        NameFilter
+				                                            ),
+				                    ExpandHierarchiesList = Table.ExpandListColumn(NameSelection, "Hierarchies"),
+				                    SelectDefaultHierarchies = Table.SelectRows(ExpandHierarchiesList, each [Hierarchies][Name] = [Dimension]), // removing all virtual hierarchies
+				                    ExpandHierarchiesRecordSet = Table.ExpandRecordColumn(SelectDefaultHierarchies, "Hierarchies", {"Name", "Elements"}, {"Hierarchy", "Elements"}),
+				                    ExtractAttributes = Table.AddColumn(ExpandHierarchiesRecordSet, "Attributes", each List.Transform( [Elements] , each Record.SelectFields( _ , {"Name", "Attributes"} ))),
+				                    AddAliasesList = Table.NestedJoin(
+				                                                        ExtractAttributes,
+				                                                        "Dimension",   
+				                                                        AliasesList,
+				                                                        "Dimension",
+				                                                        "Aliases",
+				                                                        JoinKind.LeftOuter
+				                    ),
+				                    ExpandAliases = Table.ExpandTableColumn(AddAliasesList, "Aliases", {"Attribute"}, {"Aliases"}),
+				                    SelectAliasesFieldNames = Table.FromRecords(Table.TransformRows(ExpandAliases, 
+				                                                                    ( row ) => Record.TransformFields(row, { "Attributes", ( ListValue ) => 
+				                                                                                                                List.Transform( ListValue , each
+				                                                                                                                    let
+				                                                                                                                        RenameElementFileld = Record.RenameFields( _ , { "Name", "Element" } ), // Assigning a target element name 
+				                                                                                                                        AttributsUnionElement = RenameElementFileld[Attributes] & RenameElementFileld[[Element]], // The object-element replaces the "Element" attribute value, if any
+				                                                                                                                        Attributes = if row[Aliases] <> null then row[Aliases] else {},
+				                                                                                                                        SelectFields = Record.SelectFields( AttributsUnionElement, List.Union({ {"Element"}, { "Caption" }, Attributes } ), MissingField.Ignore )
+				                                                                                                                    in
+				                                                                                                                        SelectFields
+				                                                                                                                )
+				                                                                                                            }
+				                                                                                                    )
+				                                                                )
+				                    ),
+				                    CreateTableFromListOfRecords = Table.TransformColumns(SelectAliasesFieldNames, { "Attributes", ( value ) => Table.FromRecords(value) }),
+				                    UnpivotAliases = Table.TransformColumns(CreateTableFromListOfRecords, { "Attributes", ( value ) => Table.UnpivotOtherColumns(value, {"Element"}, "Alias", "ElementAlias") }),
+				                    FinalizeAliases = Table.ExpandTableColumn(UnpivotAliases, "Attributes", {"Element", "Alias", "ElementAlias"}),
+				                    AddElementKey = Table.AddColumn(FinalizeAliases, "ElementKey", each "[" & [Dimension] & "].[" & [Element] & "]"),
+				                    ElementAliases = AddElementKey[[ElementKey], [Dimension], [Element], [Alias], [ElementAlias]]        
+				                in
+				                    ElementAliases    
+				        else
+				            SysNullTables[ElementAliases]
+				    in
+				        try Source otherwise SysNullTables[ElementAliases]
+				```
+
+	annotation PBI_ResultType = Exception
+
+	annotation PBI_NavigationStepName = Navigation
+

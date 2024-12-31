@@ -1,0 +1,64 @@
+table SysStatusNo
+	lineageTag: e077cf34-0055-4447-a5a6-afc3bd61f050
+
+	column No
+		dataType: double
+		lineageTag: 75c82b6b-9af8-4c70-b70c-3558c0932dde
+		summarizeBy: sum
+		sourceColumn: No
+
+		changedProperty = IsHidden
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column Description
+		dataType: string
+		lineageTag: 50cd41b9-be91-487c-b189-ef9779dbde76
+		summarizeBy: none
+		sourceColumn: Description
+
+		changedProperty = IsHidden
+
+		annotation SummarizationSetBy = Automatic
+
+	column SymbolCode
+		dataType: int64
+		formatString: 0
+		lineageTag: 4d65b705-3373-4c19-ae43-5bccc3648afa
+		summarizeBy: count
+		sourceColumn: SymbolCode
+
+		annotation SummarizationSetBy = Automatic
+
+	column Symbol = UNICHAR([SymbolCode])
+		lineageTag: 43ff9c31-7ce5-4116-9fc0-26442f10a965
+		summarizeBy: none
+
+		annotation SummarizationSetBy = Automatic
+
+	partition SysStatusNo-4c033fef-3dee-4db3-956e-d33700ba9a08 = m
+		mode: import
+		queryGroup: SysData
+		source =
+				// Copyright © Alex Zaitsev
+				
+				let
+				    Source = #table(type table[No = number, Description = text, SymbolCode = Int64.Type],
+				        {
+				              { 0, "OK",        128994  }
+				            , { 1, "Warning",   128993  }
+				            , { 2, "Critical",  128992  }
+				            , { 3, "N/A",       9898    }
+				        }
+				    )
+				in
+				    Source
+
+	changedProperty = IsHidden
+
+	annotation PBI_ResultType = Table
+
+	annotation PBI_NavigationStepName = Navigation
+

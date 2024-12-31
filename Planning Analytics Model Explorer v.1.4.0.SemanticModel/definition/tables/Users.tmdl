@@ -1,0 +1,84 @@
+table Users
+	lineageTag: 6cb7f69b-0b5d-46fc-b059-433739ae4d57
+
+	column UserName
+		dataType: string
+		lineageTag: d70aa7ed-2b2c-49f7-b1d1-35a7fcd8a53d
+		summarizeBy: none
+		sourceColumn: UserName
+
+		annotation SummarizationSetBy = Automatic
+
+	column UserType
+		dataType: string
+		lineageTag: 83933d8d-1bb9-4913-9503-99b3dfd5978c
+		summarizeBy: none
+		sourceColumn: UserType
+
+		annotation SummarizationSetBy = Automatic
+
+	column IsUserActive
+		dataType: string
+		lineageTag: 4190f328-fcdf-425a-90aa-5126c4c31c54
+		summarizeBy: none
+		sourceColumn: IsUserActive
+
+		annotation SummarizationSetBy = Automatic
+
+	column UserEnabled
+		dataType: string
+		lineageTag: 2973022b-2e3a-485e-9567-412037a42c91
+		summarizeBy: none
+		sourceColumn: UserEnabled
+
+		annotation SummarizationSetBy = Automatic
+
+	column User
+		dataType: string
+		lineageTag: d2221d9d-3cce-4464-bc42-6f4849e65a9c
+		summarizeBy: none
+		sourceColumn: User
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Users-4eb5f8dc-b3b0-4155-a59d-bb537c76f994 = m
+		mode: import
+		queryGroup: Data\UserData
+		source = ```
+				// Copyright © Alex Zaitsev
+				
+				let
+				     Source = 
+				        if (try ConnectionConfig[ConnectionType] otherwise "REST") = "REST"
+				        then
+				            let
+				                Value = HttpRequests[Users][value],
+				                ConvertToTable = Table.FromList(Value, Splitter.SplitByNothing(), {"RecordSet"}, null, ExtraValues.Ignore),
+				                ExpandRecordSet = Table.ExpandRecordColumn(ConvertToTable, "RecordSet", {"Name", "FriendlyName", "Type", "IsActive", "Enabled"}, {"User", "UserName", "UserType", "IsUserActive", "UserEnabled"})
+				            in
+				                ExpandRecordSet        
+				        else if (try ConnectionConfig[ConnectionType] otherwise "REST") = "DataFiles" 
+				        then
+				            if Table.RowCount(Source_TransactionLog) > 0
+				            then
+				                Table.FromColumns(
+				                    {
+				                          List.Distinct(Source_TransactionLog[User])
+				                        , List.Distinct(Source_TransactionLog[User])
+				                        , {}
+				                        , {}
+				                        , {}
+				                    }, Table.ColumnNames(SysNullTables[Users])
+				                )
+				            else
+				                SysNullTables[Users]
+				        else
+				            SysNullTables[Users]
+				in
+				    try Source otherwise SysNullTables[Users]
+				```
+
+	annotation PBI_ResultType = Table
+
+	annotation PBI_NavigationStepName = Navigation
+

@@ -1,0 +1,47 @@
+table CubeDimensions
+	lineageTag: 0a13b22d-a1b8-4050-a58a-a566298f322b
+
+	column Cube
+		dataType: string
+		lineageTag: 33d01359-b6bc-4dd8-9e03-22c01c24941d
+		summarizeBy: none
+		sourceColumn: Cube
+
+		annotation SummarizationSetBy = Automatic
+
+	column Dimension
+		dataType: string
+		lineageTag: a9556a46-45e0-4177-a7e7-f4fde89a612e
+		summarizeBy: none
+		sourceColumn: Dimension
+
+		annotation SummarizationSetBy = Automatic
+
+	partition CubeDimensions-fee52bfd-cc66-4959-bad6-0b0ef27de498 = m
+		mode: import
+		queryGroup: Data\UserData
+		source = ```
+				// Copyright © Alex Zaitsev
+				
+				let
+				     Source = 
+				        if (try ConnectionConfig[ConnectionType] otherwise "REST") = "REST" 
+				        then
+				            let
+				                Value = HttpRequests[CubeDimensions][value],
+				                ConvertToTable = Table.FromList(Value, Splitter.SplitByNothing(), {"RecordSet"}, null, ExtraValues.Ignore),
+				                ExpandRecordSet = Table.ExpandRecordColumn(ConvertToTable, "RecordSet", {"Name", "Dimensions"}, {"Cube", "Dimensions"}),
+				                ExpandedDimensionList = Table.ExpandListColumn(ExpandRecordSet, "Dimensions"),
+				                ExpandedDimensionRecords = Table.ExpandRecordColumn(ExpandedDimensionList, "Dimensions", {"Name"}, {"Dimension"})
+				            in
+				                ExpandedDimensionRecords
+				        else
+				            SysNullTables[CubeDimensions]
+				in
+				    try Source otherwise SysNullTables[CubeDimensions]
+				```
+
+	annotation PBI_ResultType = Exception
+
+	annotation PBI_NavigationStepName = Navigation
+

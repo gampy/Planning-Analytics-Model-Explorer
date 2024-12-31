@@ -1,0 +1,72 @@
+table FeedersProcessing
+	lineageTag: 8d2df2c6-f219-4a7c-9137-4ecd242b1c7b
+
+	column TimeStamp
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 11007234-65ef-4ea4-9759-76b7d9dbfead
+		summarizeBy: none
+		sourceColumn: TimeStamp
+
+		variation Variation
+			isDefault
+			relationship: 29860615-6446-4d89-ad75-14113fb843b0
+			defaultHierarchy: LocalDateTable_45bf4bf2-be77-4a04-96f1-83e5771ea845.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	column Cube
+		dataType: string
+		lineageTag: 9708ad6e-8fb4-4bc2-87bc-880a89dc89e6
+		summarizeBy: none
+		sourceColumn: Cube
+
+		annotation SummarizationSetBy = Automatic
+
+	column msDuration
+		dataType: int64
+		formatString: 0
+		lineageTag: bc6309b0-3692-4ae6-ad31-9f3af7437b69
+		summarizeBy: sum
+		sourceColumn: msDuration
+
+		annotation SummarizationSetBy = Automatic
+
+	partition FeedersProcessing-f1f8d4c9-d138-4680-a2fb-e0d9db019f24 = m
+		mode: import
+		queryGroup: Data\UserData
+		source = ```
+				// Copyright © Alex Zaitsev
+				
+				let
+				    FeedersProcessingLog = Source_MessageLog[[TimeStamp], [Message]],
+				    MsgSelection = Table.SelectRows(FeedersProcessingLog, each Text.Contains( [Message], SysMessageLog[ProcessFeedersMsg] )),
+				    AddCube = Table.AddColumn(
+				        MsgSelection
+				        , "Cube"
+				        , each Text.BetweenDelimiters([Message], "Done computing feeders for base cube '", "'.")
+				        , type text
+				    ),
+				    NameSelection = Table.SelectRows(AddCube, each 
+				                                        let 
+				                                            Name = [Cube], 
+				                                            NameFilter = List.MatchesAny( KeyWords[SysMetaDataRef], each not Text.StartsWith( Name, _ ))
+				                                        in 
+				                                            NameFilter
+				                ),
+				    AddTime = Table.AddColumn(
+				        NameSelection
+				        , "msDuration"
+				        , each try Number.FromText(Text.Trim(Text.BetweenDelimiters([Message], "ProcessFeeders(in", "ms)")), "en-US") otherwise 0
+				        , Int64.Type
+				    )
+				   
+				in
+				    //AddTime
+				    try AddTime[[TimeStamp], [Cube], [msDuration]] otherwise SysNullTables[FeedersProcessing]
+				```
+
+	annotation PBI_ResultType = Table
+
+	annotation PBI_NavigationStepName = Navigation
+

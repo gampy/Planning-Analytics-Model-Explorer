@@ -1,0 +1,92 @@
+table UserGroups
+	lineageTag: 487fd2c4-11a1-4e35-a215-fa4be3fde935
+
+	column User
+		dataType: string
+		lineageTag: a6b1ceed-5977-4550-bac2-ae6d95b431d7
+		summarizeBy: none
+		sourceColumn: User
+
+		annotation SummarizationSetBy = Automatic
+
+	column GroupName
+		dataType: string
+		lineageTag: 4933cc87-ca5d-4951-937c-c7253c2d199d
+		summarizeBy: none
+		sourceColumn: GroupName
+
+		annotation SummarizationSetBy = Automatic
+
+	column InGroup
+		dataType: string
+		lineageTag: f4b39501-32d9-443c-ae39-efdc0ee07499
+		summarizeBy: none
+		sourceColumn: InGroup
+
+		annotation SummarizationSetBy = Automatic
+
+	partition UserGroups-916dba5a-10ae-4f2b-b675-0c2dc5753bf7 = m
+		mode: import
+		queryGroup: Data\UserData
+		source = ```
+				// Copyright © Alex Zaitsev
+				
+				let
+				    Source = 
+				        if (try ConnectionConfig[ConnectionType] otherwise "REST") = "REST" 
+				        then
+				            let
+				                Dim1 = "}Clients",
+				                Dim2 = "}Groups",
+				                Dim3 = "}ElementAttributes_}Groups",
+				                
+				                TabulateClientGroups = fn_tabulateCubeData(HttpRequests[ClientGroups][Cells], HttpRequests[ClientGroups][Axes]),
+				                CheckClientGroups = if Table.IsEmpty(TabulateClientGroups) then Table.FromRows({}, {Dim1, Dim2, "Value"}) else TabulateClientGroups,
+				                ClientGroups = Table.RenameColumns(CheckClientGroups, {{Dim1, "User"}, {Dim2, "Group"}, {"Value", "InGroup"}}),
+				
+				                TabulateGroups = fn_tabulateCubeData(HttpRequests[Groups][Cells], HttpRequests[Groups][Axes]),
+				                CheckGroups = if Table.IsEmpty(TabulateGroups) then Table.FromRows({}, {Dim2, Dim3, "Value"}) else TabulateGroups,
+				                RenameGroupsColumns = Table.RenameColumns(CheckGroups, {{Dim2, "Group"}, {Dim3, "DefaultDisplayValue"}, {"Value", "GroupName"}}),
+				                Groups = Table.SelectRows(RenameGroupsColumns, each ([DefaultDisplayValue] = "}TM1_DefaultDisplayValue")),
+				
+				                ExtendedClientGroups = Table.NestedJoin(
+				                                        Table.SelectColumns(ClientGroups , {"User", "InGroup"})
+				                                    , "InGroup"
+				                                    , Table.SelectColumns(Groups, {"Group", "GroupName"})
+				                                    , "Group"
+				                                    , "GroupName"
+				                                    , JoinKind.LeftOuter
+				                ),
+				                ExpandGroupName = Table.ExpandTableColumn(ExtendedClientGroups, "GroupName", {"GroupName"}),
+				                ReplaceNullFriendlyName = Table.ReplaceValue(
+				                                                            ExpandGroupName
+				                                                        , each null
+				                                                        , each [InGroup]
+				                                                        , Replacer.ReplaceValue
+				                                                        , {"GroupName"}
+				                )
+				            in 
+				                ReplaceNullFriendlyName
+				        else if (try ConnectionConfig[ConnectionType] otherwise "REST") = "DataFiles" 
+				        then
+				            if Table.RowCount(Source_TransactionLog) > 0
+				            then
+				                Table.FromColumns(
+				                    {
+				                          List.Distinct(Source_TransactionLog[User])
+				                        , {}
+				                        , {}
+				                    }, Table.ColumnNames(SysNullTables[UserGroups])
+				                )
+				            else
+				                SysNullTables[UserGroups]
+				        else
+				            SysNullTables[UserGroups]
+				in
+				    try Source otherwise SysNullTables[UserGroups]
+				```
+
+	annotation PBI_ResultType = Table
+
+	annotation PBI_NavigationStepName = Navigation
+

@@ -1,0 +1,17 @@
+table CrossCubes
+	lineageTag: 9fd423ae-d3ae-489c-9661-8518b641ed62
+
+	column Cube
+		lineageTag: a0ab241f-e253-42d2-9a56-72a23ddd09f3
+		summarizeBy: none
+		isNameInferred
+		sourceColumn: Cubes[Cube]
+
+		annotation SummarizationSetBy = Automatic
+
+	partition CrossCubes = calculated
+		mode: import
+		source = Cubes
+
+	annotation PBI_Id = 8317dc6686ea4742b6d963651da6a227
+

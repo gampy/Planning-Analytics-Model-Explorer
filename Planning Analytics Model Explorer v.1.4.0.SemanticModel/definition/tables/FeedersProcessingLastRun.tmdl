@@ -1,0 +1,60 @@
+table FeedersProcessingLastRun
+	lineageTag: 9aaf3bef-52e1-4b41-83a5-67b73f69fbfe
+
+	column TimeStamp
+		formatString: General Date
+		lineageTag: c361b93d-2e08-46b9-b772-876aa647ffac
+		summarizeBy: none
+		isNameInferred
+		sourceColumn: FeedersProcessing[TimeStamp]
+
+		variation Variation
+			isDefault
+			relationship: 2c55ac48-d373-4f64-9735-23f1c9859033
+			defaultHierarchy: LocalDateTable_1b28d7f5-b705-44d0-925a-19dba80c20fb.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	column Cube
+		lineageTag: a60a11f7-de40-42ae-9140-9c2bdef0a2a3
+		summarizeBy: none
+		isNameInferred
+		sourceColumn: FeedersProcessing[Cube]
+
+		annotation SummarizationSetBy = Automatic
+
+	column msDuration
+		formatString: 0
+		lineageTag: e91bc058-e3c0-403f-a18f-31799e2e7762
+		summarizeBy: sum
+		isNameInferred
+		sourceColumn: FeedersProcessing[msDuration]
+
+		annotation SummarizationSetBy = Automatic
+
+	column Rank
+		formatString: 0
+		lineageTag: a5c61cc1-8f16-4ed8-b9cb-6314d7bb09c2
+		summarizeBy: sum
+		isNameInferred
+		sourceColumn: [Rank]
+
+		annotation SummarizationSetBy = Automatic
+
+	partition FeedersProcessingLastRun = calculated
+		mode: import
+		source = ```
+				
+				    ADDCOLUMNS (	
+				    FILTER(
+				        'FeedersProcessing', 
+				            VAR ContextCube = 'FeedersProcessing'[Cube]
+				            RETURN
+				            'FeedersProcessing'[TimeStamp] = MAXX(FILTER('FeedersProcessing', 'FeedersProcessing'[Cube] = ContextCube), 'FeedersProcessing'[TimeStamp])
+				        )
+				    , "Rank", RANK( DENSE, ORDERBY('FeedersProcessing'[msDuration], DESC, 'FeedersProcessing'[Cube], ASC))
+				    )
+				```
+
+	annotation PBI_Id = e0dc43406ebf4d7cb43f08d8758d16d9
+

@@ -1,0 +1,20 @@
+table CubesWithOthers
+	lineageTag: 32124a9f-efa0-4874-824b-e9e743aa0a15
+
+	column Cube
+		lineageTag: dbad2091-d5d0-491b-903b-1e8ffd7c938a
+		summarizeBy: none
+		isNameInferred
+		sourceColumn: Cubes[Cube]
+
+		annotation SummarizationSetBy = Automatic
+
+	partition CubesWithOthers-f5b625cb-27df-4fb1-8f9d-9a0eca4941cd = calculated
+		mode: import
+		source = ```
+				UNION(Cubes, ROW("Cube", [cOthers]))
+				
+				```
+
+	annotation PBI_Id = fabbeacf6ad84f9c9dfc2cbc89e4e538
+

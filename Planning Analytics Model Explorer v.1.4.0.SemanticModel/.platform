@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "SemanticModel",
+    "displayName": "Planning Analytics Model Explorer v.1.4.0"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "5c7e718b-e87f-477d-8411-414200cf07ad"
+  }
+}

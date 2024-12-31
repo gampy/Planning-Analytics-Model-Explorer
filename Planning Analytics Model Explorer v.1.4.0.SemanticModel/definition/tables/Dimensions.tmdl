@@ -1,0 +1,35 @@
+table Dimensions
+	lineageTag: 22f2d295-fe17-4612-b5f5-4fba22b2071b
+
+	column Dimension
+		dataType: string
+		lineageTag: 6c78a9dd-dd66-4c35-94f1-002b1231e041
+		summarizeBy: none
+		sourceColumn: Dimension
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Dimensions-fe2145ff-3b16-4128-9773-2236fc434be7 = m
+		mode: import
+		queryGroup: Data\UserData
+		source = ```
+				// Copyright © Alex Zaitsev
+				
+				let
+				    Source = 
+				        if (try ConnectionConfig[ConnectionType] otherwise "REST") = "REST" 
+				        then
+				            Table.FromList(List.Distinct(CubeDimensions[Dimension]), Splitter.SplitByNothing(), {"Dimension"}, null, ExtraValues.Ignore)        
+				        else if (try ConnectionConfig[ConnectionType] otherwise "REST") = "DataFiles" 
+				        then
+				            Table.Distinct(DataFiles_Dimensions)
+				        else
+				            SysNullTables[Dimensions]
+				in
+				    try Source otherwise SysNullTables[Dimensions]
+				```
+
+	annotation PBI_ResultType = Exception
+
+	annotation PBI_NavigationStepName = Navigation
+

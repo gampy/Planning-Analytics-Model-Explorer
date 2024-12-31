@@ -1,0 +1,42 @@
+table MemoryMetrics
+	lineageTag: e96bba20-0bcb-468f-90be-69a52eb0d11d
+
+	column Name
+		dataType: string
+		lineageTag: ffe479c9-b370-4d0f-aa0b-09a8234c7a82
+		summarizeBy: none
+		sourceColumn: Name
+
+		annotation SummarizationSetBy = Automatic
+
+	column Metric
+		dataType: string
+		lineageTag: 01c81311-d368-4584-a599-69e15d4a4830
+		summarizeBy: none
+		sourceColumn: Metric
+
+		annotation SummarizationSetBy = Automatic
+
+	partition MemoryMetrics-62682e01-c9f6-40c5-8bbc-159f8ef9199a = m
+		mode: import
+		queryGroup: Data\UserData
+		source =
+				// Copyright © Alex Zaitsev
+				
+				let
+				    Source = #table(type table[Name = text, Metric = text],
+				        {
+				            { "cubes",          "Total Memory Used" },
+				            { "views",          "Memory Used for Views" },
+				            { "calculations",   "Memory Used for Calculations" },
+				            { "feeders",        "Memory Used for Feeders" },
+				            { "input data",     "Memory Used for Input Data" }
+				        }
+				    )
+				in
+				    Source
+
+	annotation PBI_ResultType = Table
+
+	annotation PBI_NavigationStepName = Navigation
+

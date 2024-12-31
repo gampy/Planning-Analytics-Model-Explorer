@@ -1,0 +1,162 @@
+relationship 81f7ae21-e07f-4496-946a-dd8644e0328c
+	joinOnDateBehavior: datePartOnly
+	fromColumn: TransactionLog.TimeStamp
+	toColumn: LocalDateTable_1df1e6a0-dc05-444d-a2e4-554e3cdfc54f.Date
+
+relationship bb66983c-033f-4b32-9249-2501d6096149
+	fromColumn: TransactionLogDimensions.RecordNo
+	toColumn: TransactionLog.RecordNo
+
+relationship 272bc34b-063d-4d39-973a-52928e491f87
+	crossFilteringBehavior: bothDirections
+	fromColumn: CubeDimensions.Cube
+	toColumn: Cubes.Cube
+
+relationship 453860e3-9123-453b-847e-cd892d6b28b3
+	fromColumn: CubeDimensions.Dimension
+	toColumn: Dimensions.Dimension
+
+relationship b5819ff1-f6cc-41be-8d7e-80ce0b8dfd26
+	crossFilteringBehavior: bothDirections
+	toCardinality: many
+	fromColumn: CubeSecurity.Group
+	toColumn: UserGroups.InGroup
+
+relationship 2cd461c1-969e-432c-94d8-eae203407846
+	fromColumn: UserGroups.User
+	toColumn: Users.User
+
+relationship e728d89d-a48e-4515-9644-9f30b5c1c55a
+	crossFilteringBehavior: bothDirections
+	toCardinality: many
+	fromColumn: CubeDimensions.Dimension
+	toColumn: DimensionElements.Dimension
+
+relationship 8993e64f-8b62-4a7f-8c8d-fe2f9c6d0f60
+	fromColumn: UserStats.User
+	toColumn: Users.User
+
+relationship 2d774232-0404-4d21-b18b-7d0789af20b2
+	fromColumn: TransactionLog.Cube
+	toColumn: Cubes.Cube
+
+relationship caa0e2ce-d7ad-4bce-ac43-7526d484f117
+	toCardinality: many
+	fromColumn: ElementAliases.ElementKey
+	toColumn: DimensionElements.ElementKey
+
+relationship d773b225-5008-4da1-aa15-e4477f6c8a5e
+	isActive: false
+	toCardinality: many
+	fromColumn: ElementAliases.ElementKey
+	toColumn: TransactionLogDimensions.ElementKey
+
+relationship 7b75d40c-9ffa-47dc-877c-00cc75b3b5de
+	crossFilteringBehavior: bothDirections
+	securityFilteringBehavior: bothDirections
+	toCardinality: many
+	fromColumn: DimensionAttributes.Dimension
+	toColumn: CubeDimensions.Dimension
+
+relationship 0a7dfcf0-a15b-4841-953e-5f4d23dc2543
+	joinOnDateBehavior: datePartOnly
+	fromColumn: SysLastRefresh.LastRefreshDate
+	toColumn: LocalDateTable_85cfbfb2-c37d-49e6-bd66-cc7c131b7f6d.Date
+
+relationship c8b110b9-c295-4753-a3c3-697e0dbbaab8
+	joinOnDateBehavior: datePartOnly
+	fromColumn: CubeStats.DateTime
+	toColumn: LocalDateTable_62b35232-6337-4bdc-884b-ef3497043f39.Date
+
+relationship aa947d0a-7b40-4551-98ae-03532ce1ecce
+	joinOnDateBehavior: datePartOnly
+	fromColumn: UserStats.DateTime
+	toColumn: LocalDateTable_026736a1-5a83-4784-ab3f-ab7eae229ff8.Date
+
+relationship 6219d8c6-accf-46f0-9c04-73afa1a0ebc0
+	joinOnDateBehavior: datePartOnly
+	fromColumn: ServerStats.DateTime
+	toColumn: LocalDateTable_cebce91d-7993-49a6-bab1-d5ee5f5698e9.Date
+
+relationship a58ec9c5-0697-4147-99a6-b63b82126f2f
+	crossFilteringBehavior: bothDirections
+	fromColumn: CubeProcessesRelation.Cube
+	toColumn: Cubes.Cube
+
+relationship a3998994-e9a6-4be4-9fd1-7221811e0132
+	toCardinality: many
+	fromColumn: Tree:Processes:Target<Source.ProcLevel_0
+	toColumn: CubeProcessesRelation.Process
+
+relationship 29860615-6446-4d89-ad75-14113fb843b0
+	joinOnDateBehavior: datePartOnly
+	fromColumn: FeedersProcessing.TimeStamp
+	toColumn: LocalDateTable_45bf4bf2-be77-4a04-96f1-83e5771ea845.Date
+
+relationship 385333e0-64a3-4f9d-84e5-6dfd57febca7
+	joinOnDateBehavior: datePartOnly
+	fromColumn: ModelElapsedTime.TimeStamp
+	toColumn: LocalDateTable_7d42e85f-721c-45bc-884d-f132081c47a6.Date
+
+relationship ef5d2aac-1652-4075-98d9-491baa68ae19
+	fromColumn: FeedersProcessing.Cube
+	toColumn: Cubes.Cube
+
+relationship 3943db31-905f-4caa-9100-1f4f8d76c42c
+	fromColumn: CubeStats.Cube
+	toColumn: CubesWithOthers.Cube
+
+relationship 2932b729-1523-46ec-b415-9ce8414171d8
+	fromColumn: CubeStats.Cube
+	toColumn: Cubes.Cube
+
+relationship 18718c3f-6727-4d3d-a501-77cb8af461f4
+	fromColumn: CubeStats.Indicator
+	toColumn: MemoryMetrics.Metric
+
+relationship 5c44ae54-de29-4c9e-b515-bf82e5b8a310
+	fromColumn: CubeStats.HoursOffset
+	toColumn: MetricsTimeScale.HoursOffset
+
+relationship b032fa4c-6f80-4b6a-b475-0380dbf6d5d7
+	fromColumn: ServerStats.HoursOffset
+	toColumn: MetricsTimeScale.HoursOffset
+
+relationship cd323da0-cfb7-45b8-8bea-66ff753d3f0c
+	fromColumn: Tree:Rules:Target<Source.CubeLevel_0
+	toColumn: Cubes.Cube
+
+relationship cb44f6c2-fafb-14b3-4ffd-2fa95c79e15a
+	crossFilteringBehavior: bothDirections
+	fromCardinality: one
+	fromColumn: PerformanceStats.Rule
+	toColumn: Cubes.Cube
+
+relationship 4e794de7-130d-7d62-dc24-0649a42b1297
+	fromColumn: Tree:Rules:Target<Source.CubeLevel_0
+	toColumn: CrossCubes.Cube
+
+relationship c892d9db-6872-76ba-91fe-ee415df29524
+	fromColumn: Tree:Feeders:Source>Target.CubeLevel_0
+	toColumn: Cubes.Cube
+
+relationship 2c55ac48-d373-4f64-9735-23f1c9859033
+	joinOnDateBehavior: datePartOnly
+	fromColumn: FeedersProcessingLastRun.TimeStamp
+	toColumn: LocalDateTable_1b28d7f5-b705-44d0-925a-19dba80c20fb.Date
+
+relationship c46b0f16-2888-6385-dbde-986e8c873f93
+	crossFilteringBehavior: bothDirections
+	fromCardinality: one
+	fromColumn: Cubes.Cube
+	toColumn: FeedersProcessingLastRun.Cube
+
+relationship bb51fd68-cdc8-4252-9d8d-4f0e897c76bb
+	joinOnDateBehavior: datePartOnly
+	fromColumn: SysHttpRequestLog.RequestResponseTime
+	toColumn: LocalDateTable_05d5940f-c3a1-4b99-991d-f3dd28ee5f21.Date
+
+relationship 9c2240ca-5622-6c4a-7603-969da1f8cefb
+	fromColumn: UserStats.Time
+	toColumn: TimeTable.Time
+

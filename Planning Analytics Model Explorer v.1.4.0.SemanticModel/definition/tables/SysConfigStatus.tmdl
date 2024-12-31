@@ -1,0 +1,81 @@
+table SysConfigStatus
+	isHidden
+	lineageTag: bd72c3d2-dad5-49d2-889d-bd6f7141fc5e
+
+	column Name
+		dataType: string
+		isHidden
+		lineageTag: 51c1db22-c162-4d5d-a1d0-f3128df8a37d
+		summarizeBy: none
+		sourceColumn: Name
+
+		changedProperty = IsHidden
+
+		annotation SummarizationSetBy = Automatic
+
+	column Value
+		dataType: string
+		isHidden
+		lineageTag: e455d2a7-078e-4cdb-a8ca-927e4b082785
+		summarizeBy: none
+		sourceColumn: Value
+
+		changedProperty = IsHidden
+
+		annotation SummarizationSetBy = Automatic
+
+	partition SysConfigStatus-5d0e134e-54c0-4d89-8e64-33edadb09837 = m
+		mode: import
+		queryGroup: SysData
+		source = ```
+				// Copyright © Alex Zaitsev
+				
+				let
+				    Source = Table.Combine(
+				        {
+							Table.Unpivot(
+									Table.FromRecords({ Record.SelectFields(ConnectionConfig, { "ConnectionType", "Host:Port", "Login", "Namespace" }) })
+									, { "ConnectionType", "Host:Port", "Login", "Namespace" }
+									, "Name"
+									, "Value"
+							)
+				            , Table.FromRecords(
+				                    {   
+				                          try Configuration{[Name = "ServerName"]} otherwise [Name = "ServerName"] & [Value = "N/A"]
+				                        , try Configuration{[Name = "AdminHost"]} otherwise [Name = "AdminHost"] & [Value = "N/A"]
+				                    }
+				            )
+				            , Table.FromRecords(
+				                    {   
+				                        [ Name = "TransactionLog", Value = SettingsConfig[TransactionLogPeriodInDays] >= 0 ]
+				                    }
+				            )
+				            , Table.FromRecords(
+									{   
+										[ Name = "SSL connection", Value = Text.Contains(Text.Lower(ConnectionConfig[#"Host:Port"]), "https") ]
+									}
+				            )
+				            , Table.FromRecords(
+				                    {
+				                        [Name = "SSL Setup"
+				                        , Value =   try // Errors have a specific SSL-related code:
+				                                    // URL uses http protocol,  tm1s.cfg UseSSL = true
+				                                    not List.MatchesAny(SysHttpRequestLog[ConnectionErrorMessage], each Text.Contains ( _ , "The server committed a protocol violation. Section=ResponseStatusLine"))
+				                                    and // URL uses https protocol,  tm1s.cfg UseSSL = false
+				                                    not List.MatchesAny(SysHttpRequestLog[ConnectionErrorMessage], each Text.Contains ( _ , "The underlying connection was closed: An unexpected error occurred on a send."))
+				                                    and  // Self signed certificate is used
+				                                    not List.MatchesAny(SysHttpRequestLog[ConnectionErrorMessage], each Text.Contains ( _ , "The underlying connection was closed: Could not establish trust relationship for the SSL/TLS secure channel."))
+				                                    otherwise "N/A"
+				                        ] 
+				                    }
+				            )
+				        }
+				    )
+				in
+				    Source
+				```
+
+	annotation PBI_ResultType = Table
+
+	annotation PBI_NavigationStepName = Navigation
+

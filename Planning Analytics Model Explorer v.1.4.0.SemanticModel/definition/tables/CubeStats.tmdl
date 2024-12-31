@@ -1,0 +1,118 @@
+table CubeStats
+	lineageTag: f852f979-7750-45d5-b95d-9ff50d0f31d0
+
+	column Cube
+		dataType: string
+		lineageTag: 35f8c390-8dbd-489b-9663-cd3136d8c64b
+		summarizeBy: none
+		sourceColumn: Cube
+
+		annotation SummarizationSetBy = Automatic
+
+	column Indicator
+		dataType: string
+		lineageTag: 6ec11fb0-30b7-4297-981e-27d5d1444605
+		summarizeBy: none
+		sourceColumn: Indicator
+
+		annotation SummarizationSetBy = Automatic
+
+	column TimeIntervals
+		dataType: string
+		lineageTag: b4a63e2c-5b91-4a7f-a817-73a4df8cdb9b
+		summarizeBy: none
+		sourceColumn: TimeIntervals
+
+		annotation SummarizationSetBy = Automatic
+
+	column Value
+		dataType: int64
+		lineageTag: b811b665-2232-4671-be29-0e86795a6f30
+		summarizeBy: sum
+		sourceColumn: Value
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column DateTime
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 2d3fe89b-f894-4a51-9b65-e5420e56fb3e
+		summarizeBy: none
+		sourceColumn: DateTime
+
+		variation Variation
+			isDefault
+			relationship: c8b110b9-c295-4753-a3c3-697e0dbbaab8
+			defaultHierarchy: LocalDateTable_62b35232-6337-4bdc-884b-ef3497043f39.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	column HoursOffset
+		dataType: int64
+		lineageTag: 74a2b4fd-89c5-40b0-9370-55a2e9ff2cf6
+		summarizeBy: none
+		sourceColumn: HoursOffset
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	hierarchy 'TimeIntervals Hierarchy'
+		lineageTag: 59a82daa-198f-49bd-bfc7-b793c8f83599
+
+		level TimeIntervals
+			lineageTag: bd090cf2-7bb8-4de6-8671-2dde853c8757
+			column: TimeIntervals
+
+		level Value
+			lineageTag: 30d8b086-0893-461c-afdd-b1d0e62deb04
+			column: Value
+
+	partition CubeStats-744d189b-770e-4b17-ae8a-c89d54b3fb6c = m
+		mode: import
+		queryGroup: Data\UserData
+		source = ```
+				// Copyright © Alex Zaitsev
+				
+				let
+				    Source = 
+				    if (try ConnectionConfig[ConnectionType] otherwise "REST") = "REST"
+				    then
+				       let
+				            Dim1 = "}PerfCubes",
+				            Dim2 = "}StatsStatsByCube",
+				            Dim3 = "}TimeIntervals",
+				
+				            TabulateCubeData = fn_tabulateCubeData(HttpRequests[StatsByCube][Cells], HttpRequests[StatsByCube][Axes]),
+				            CheckCubeData = if Table.IsEmpty(TabulateCubeData) then Table.FromRows({}, {Dim1, Dim2, Dim3, "Value"}) else TabulateCubeData,
+				            RenameCubeColumns = Table.RenameColumns(CheckCubeData, {{Dim1, "Cube"}, {Dim2, "Indicator"},  {Dim3, "TimeIntervals"}, {"Value", "Value"}}),
+				            NameSelection = Table.SelectRows(RenameCubeColumns, each 
+				                                                                    let 
+				                                                                        Name = [Cube], 
+				                                                                        NameFilter = List.MatchesAny( KeyWords[SysMetaDataRef], each not Text.StartsWith( Name, _ ))
+				                                                                    in 
+				                                                                        NameFilter
+				            ),
+				            CubeStats = Table.SelectColumns(NameSelection, {"Cube", "Indicator", "TimeIntervals", "Value"}),
+				            RemoveCubesTotal = Table.SelectRows(CubeStats, each Text.From([Cube]) <> "Cubes Total"), // Not needed for BI reports
+				            ReplaceNullValues = Table.ReplaceValue(RemoveCubesTotal, null, 0, Replacer.ReplaceValue, {"Value"}), 
+				            AggregateMRecords = fn_aggregateMTimeIntervalsToCurrentHour(ReplaceNullValues,  {"Cube", "Indicator", "TimeIntervals"}, {{"Value", each List.Average([Value]), type nullable number}}, "TimeIntervals"),
+				            DuplicateTimeIntervalsColumn = Table.DuplicateColumn(AggregateMRecords, "TimeIntervals", "DateTime"),
+				            AddDateTime = fn_transformTimeIntervalsToDateTime(DuplicateTimeIntervalsColumn, "DateTime"),                           
+				            LatestDateTime = List.Max(AddDateTime[DateTime]),
+				            HoursOffset = Table.AddColumn(AddDateTime, "HoursOffset", each Number.RoundDown(Duration.TotalHours( Duration.From([DateTime] - LatestDateTime)) ), Int64.Type),
+				            TransformColumnTypes = Table.TransformColumnTypes(HoursOffset, {{"Cube", type text}, {"Indicator", type text}, {"TimeIntervals", type text}, {"DateTime", type datetime}, {"Value", Int64.Type}})
+				        in
+				            TransformColumnTypes
+				    else
+				        SysNullTables[CubeStats]
+				in
+				    try Source otherwise SysNullTables[CubeStats]
+				```
+
+	annotation PBI_ResultType = Exception
+
+	annotation PBI_NavigationStepName = Navigation
+

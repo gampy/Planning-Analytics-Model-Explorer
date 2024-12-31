@@ -1,0 +1,124 @@
+table Tree:Processes:Target<Source
+	lineageTag: 48f0a27a-67b9-4030-9bf6-18d1447367a6
+
+	column HierarchyPath
+		dataType: string
+		lineageTag: bc4fa3d8-bd96-449c-8309-3486e8e1c367
+		summarizeBy: none
+		sourceColumn: HierarchyPath
+
+		annotation SummarizationSetBy = Automatic
+
+	column ProcLevel_0
+		dataType: string
+		lineageTag: 0b6722db-9876-4218-8862-9a10d0045641
+		summarizeBy: none
+		sourceColumn: ProcLevel_0
+
+		annotation SummarizationSetBy = Automatic
+
+	column ProcLevel_1
+		dataType: string
+		lineageTag: 07049c3f-d254-4565-9590-268e864256d5
+		summarizeBy: none
+		sourceColumn: ProcLevel_1
+
+		annotation SummarizationSetBy = Automatic
+
+	column PathLength = PATHLENGTH('Tree:Processes:Target<Source'[HierarchyPath])
+		formatString: 0
+		lineageTag: 3a3c823a-9a3d-48dd-80a7-639e13a033a4
+		summarizeBy: sum
+
+		annotation SummarizationSetBy = Automatic
+
+	column ProcLevel_2
+		dataType: string
+		lineageTag: 900ff90f-5a0b-4917-a7c2-ec0937abf029
+		summarizeBy: none
+		sourceColumn: ProcLevel_2
+
+		annotation SummarizationSetBy = Automatic
+
+	column ProcLevel_3
+		dataType: string
+		lineageTag: 6b9adeeb-abd2-44bb-84ba-8d9f095299ac
+		summarizeBy: none
+		sourceColumn: ProcLevel_3
+
+		annotation SummarizationSetBy = Automatic
+
+	column ProcLevel_4
+		dataType: string
+		lineageTag: 9581d632-1374-45e0-bbb3-236d701c19ac
+		summarizeBy: none
+		sourceColumn: ProcLevel_4
+
+		annotation SummarizationSetBy = Automatic
+
+	column ProcLevel_5
+		dataType: string
+		lineageTag: e3a86f42-89ef-4efd-a945-ad341fb87057
+		summarizeBy: none
+		sourceColumn: ProcLevel_5
+
+		annotation SummarizationSetBy = Automatic
+
+	column ProcLevel_6
+		dataType: string
+		lineageTag: af1d65ce-dc15-4841-9a7c-30f2f09b8d3a
+		summarizeBy: none
+		sourceColumn: ProcLevel_6
+
+		annotation SummarizationSetBy = Automatic
+
+	column ProcLevel_7
+		dataType: string
+		lineageTag: ffb0041f-8d8b-43cd-a72f-a14c4f6a6abe
+		summarizeBy: none
+		sourceColumn: ProcLevel_7
+
+		annotation SummarizationSetBy = Automatic
+
+	column ProcLevel_8
+		dataType: string
+		lineageTag: 55960f53-27f5-4e9b-be43-06cebb747824
+		summarizeBy: none
+		sourceColumn: ProcLevel_8
+
+		annotation SummarizationSetBy = Automatic
+
+	column ProcLevel_9
+		dataType: string
+		lineageTag: 9258e044-7e4e-4ea1-ae59-4ba9a6d67f77
+		summarizeBy: none
+		sourceColumn: ProcLevel_9
+
+		annotation SummarizationSetBy = Automatic
+
+	column ProcLevel_10
+		dataType: string
+		lineageTag: c2d7cb2b-30a0-4abc-9836-b685c68ebf5f
+		summarizeBy: none
+		sourceColumn: ProcLevel_10
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Tree:Processes:Target<Source-15fa2c40-0fd7-492f-8bd0-9ebca777678c = m
+		mode: import
+		queryGroup: Data\UserData
+		source = ```
+				// Copyright © Alex Zaitsev
+				
+				let 
+					TreeNodeNames = List.Select(Table.ColumnNames(#"Tree:Processes:Source>Target"), each Text.StartsWith( _ , SysName[ProcTreeNodeName])),
+					ReversedTable = fn_reverseHierarchy(#"Tree:Processes:Source>Target", TreeNodeNames, "HierarchyPath"),
+					ResultTable = try ReversedTable otherwise SysNullTables[#"Tree:Processes:Target<Source"]
+				in
+				    ResultTable
+				```
+
+	annotation PBI_ResultType = Exception
+
+	annotation PBI_NavigationStepName = Navigation
+
